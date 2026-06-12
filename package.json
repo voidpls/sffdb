@@ -1,32 +1,32 @@
 {
-  "name": "sffdb-v2",
-  "version": "2.1.0",
-  "description": "",
-  "main": "bot.js",
+  "name": "sffdb",
+  "version": "4.0",
+  "description": "SFF PC component database with Discord bot and HTTP API",
+  "main": "src/bot/index.js",
   "scripts": {
-    "start": "node bot.js",
-    "build": "touch .env",
+    "start": "node src/bot/index.js",
+    "api": "node src/api/index.js",
+    "dev": "node -e \"require('dotenv').config(); require('./src/bot').startBot(); require('./src/api').startAPI()\"",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "engines": {
-    "node": ">=16.6.0"
+    "node": ">=18.0.0"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "discord.js": "^14.6.0",
-    "dotenv": "^16.0.3",
-    "fuzzysort": "^2.0.1",
-    "lodash": "^4.17.21",
-    "object-sizeof": "^1.6.3",
-    "pm2": "^5.2.2",
-    "spreadsheet-to-json": "github:voidpls/spreadsheet-to-json"
+    "cors": "^2.8.5",
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "fuzzysort": "^3.0.2",
+    "googleapis": "^144.0.0"
   },
   "devDependencies": {
-    "eslint": "^8.25.0",
-    "eslint-config-standard": "^17.0.0",
-    "eslint-plugin-import": "^2.26.0",
-    "eslint-plugin-n": "^15.3.0",
-    "eslint-plugin-promise": "^6.1.1"
+    "eslint": "^8.57.1",
+    "eslint-config-standard": "^17.1.0",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-n": "^16.6.2",
+    "eslint-plugin-promise": "^6.6.0"
   }
 }

@@ -108,6 +108,13 @@ dist
 # Stores VSCode versions used for testing VSCode extensions
 .vscode-test
 
+# Agentic harness state
+.mimocode/
+.opencode/
+.claude/
+.codex/
+AGENTS.md
+
 # yarn v2
 .yarn/cache
 .yarn/unplugged
