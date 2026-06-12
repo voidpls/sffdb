@@ -1,6 +1,6 @@
 {
   "name": "sffdb",
-  "version": "4.0",
+  "version": "3.0",
   "description": "SFF PC component database with Discord bot and HTTP API",
   "main": "src/bot/index.js",
   "scripts": {

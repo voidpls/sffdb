@@ -11,13 +11,19 @@ async function startBot () {
   const engine = new QueryEngine()
 
   const bot = new Client({
-    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent]
+    intents: [
+      GatewayIntentBits.Guilds,
+      GatewayIntentBits.GuildMessages,
+      GatewayIntentBits.MessageContent
+    ]
   })
 
   bot.slashCommands = new Collection()
   bot.commands = new Collection()
 
-  const commandFiles = (await fs.readdir(path.join(__dirname, 'commands'))).filter(f => f.endsWith('.js'))
+  const commandFiles = (
+    await fs.readdir(path.join(__dirname, 'commands'))
+  ).filter(f => f.endsWith('.js'))
   for (const file of commandFiles) {
     const cmd = require(`./commands/${file}`)
     bot.slashCommands.set(cmd.info.name, cmd)
@@ -31,16 +37,20 @@ async function startBot () {
   }
   console.log(`[discord] Loaded ${bot.slashCommands.size} slash commands`)
 
-  bot.once('ready', async () => {
+  bot.once('clientReady', async () => {
     console.info(`[discord] Connected as ${bot.user.username}`)
     await engine.init()
     bot.index = engine
 
-    bot.user.setActivity(`${engine.getStats().count} components`, { type: 'WATCHING' })
+    bot.user.setActivity(`${engine.getStats().count} components`, {
+      type: 'WATCHING'
+    })
 
     setInterval(async () => {
       await engine.refresh()
-      bot.user.setActivity(`${engine.getStats().count} components`, { type: 'WATCHING' })
+      bot.user.setActivity(`${engine.getStats().count} components`, {
+        type: 'WATCHING'
+      })
     }, config.bot.refreshIntervalMs)
   })
 
