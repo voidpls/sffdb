@@ -26,7 +26,10 @@ async function startBot () {
   ).filter(f => f.endsWith('.js'))
   for (const file of commandFiles) {
     const cmd = require(`./commands/${file}`)
-    bot.slashCommands.set(cmd.info.name, cmd)
+
+    if (cmd.info.data) {
+      bot.slashCommands.set(cmd.info.name, cmd)
+    }
 
     if (BOT_PREFIX && cmd.info.aliases) {
       bot.commands.set(cmd.info.name, cmd)

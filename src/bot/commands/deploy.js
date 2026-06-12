@@ -16,10 +16,6 @@ module.exports = {
   run,
   info: {
     name: 'deploy',
-    data: {
-      name: 'deploy',
-      description: 'Deploys slash commands'
-    },
     aliases: []
   }
 }
