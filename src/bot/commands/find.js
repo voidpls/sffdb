@@ -1,7 +1,7 @@
 const { EmbedBuilder, InteractionResponseFlags } = require('discord.js')
 const config = require('../../config')
+
 // Interactive /find command: search -> category select -> component select -> show info
-// Uses message collectors for the multi-step prompt flow
 const collectors = new Map()
 
 const { CHANNEL_WHITELIST } = process.env
@@ -56,25 +56,26 @@ function makeEmbed (bot, data) {
     .setTitle(data.title)
 }
 
-async function showCategoryList (engine, bot, int, results, categories) {
-  // Stop any active collector for this user to prevent overlap
-  if (collectors.get(int.user.id)) {
-    collectors.get(int.user.id).stop('overlap')
-  }
+function stopCollector (userId) {
+  const existing = collectors.get(userId)
+  if (existing) existing.stop('overlap')
+}
 
-  const desc = categories.map((c, i) => `\`[${i + 1}]\` ${c}`)
-  const embed = makeEmbed(bot, {
-    title: 'Select a category',
-    description: '**Type a # to select a category**\n\n' + desc.join('\n')
-  }).setFooter({ text: 'Or type "exit" to close this prompt' })
+async function sendInteraction (int, payload) {
+  if (int.replied) return int.editReply(payload)
+  return int.reply(payload)
+}
 
-  await int.reply({ embeds: [embed] })
+// Prompt the user to type a number (1..maxChoice) or "exit"
+function collectInput (int, { maxChoice, onSelect }) {
+  stopCollector(int.user.id)
 
   const filter = m => {
     if (m.author.id !== int.user.id) return false
     if (m.content.toLowerCase() === 'exit') return true
+    if (!maxChoice) return false
     const num = parseInt(m.content)
-    return num >= 1 && num <= categories.length
+    return num >= 1 && num <= maxChoice
   }
 
   const collector = int.channel.createMessageCollector({ filter, max: 1, time: 60000 })
@@ -83,17 +84,28 @@ async function showCategoryList (engine, bot, int, results, categories) {
   collector.on('collect', async col => {
     await col.delete().catch(() => {})
     if (col.content.toLowerCase() === 'exit') return int.deleteReply()
-    return showComponentList(engine, bot, int, results, categories[parseInt(col.content) - 1])
+    if (onSelect) return onSelect(parseInt(col.content) - 1)
   })
 
   collector.on('end', () => collectors.delete(int.user.id))
 }
 
-async function showComponentList (engine, bot, int, results, category) {
-  if (collectors.get(int.user.id)) {
-    collectors.get(int.user.id).stop('overlap')
-  }
+async function showCategoryList (engine, bot, int, results, categories) {
+  const desc = categories.map((c, i) => `\`[${i + 1}]\` ${c}`)
+  const embed = makeEmbed(bot, {
+    title: 'Select a category',
+    description: '**Type a # to select a category**\n\n' + desc.join('\n')
+  }).setFooter({ text: 'Or type "exit" to close this prompt' })
 
+  await int.reply({ embeds: [embed] })
+
+  collectInput(int, {
+    maxChoice: categories.length,
+    onSelect: index => showComponentList(engine, bot, int, results, categories[index])
+  })
+}
+
+async function showComponentList (engine, bot, int, results, category) {
   const components = results.filter(r => r.category === category)
   if (components.length === 1) return showComponent(engine, bot, int, components[0])
 
@@ -108,60 +120,26 @@ async function showComponentList (engine, bot, int, results, category) {
     description: '**Type a # to select a component**\n\n' + desc.join('\n')
   }).setFooter({ text: 'Or type "exit" to close this prompt' })
 
-  if (int.replied) await int.editReply({ embeds: [embed] })
-  else await int.reply({ embeds: [embed] })
+  await sendInteraction(int, { embeds: [embed] })
 
-  const filter = m => {
-    if (m.author.id !== int.user.id) return false
-    if (m.content.toLowerCase() === 'exit') return true
-    const num = parseInt(m.content)
-    return num >= 1 && num <= shown.length
-  }
-
-  const collector = int.channel.createMessageCollector({ filter, max: 1, time: 60000 })
-  collectors.set(int.user.id, collector)
-
-  collector.on('collect', async col => {
-    await col.delete().catch(() => {})
-    if (col.content.toLowerCase() === 'exit') return int.deleteReply()
-    return showComponent(engine, bot, int, shown[parseInt(col.content) - 1])
+  collectInput(int, {
+    maxChoice: shown.length,
+    onSelect: index => showComponent(engine, bot, int, shown[index])
   })
-
-  collector.on('end', () => collectors.delete(int.user.id))
 }
 
 async function showComponent (engine, bot, int, component) {
-  if (collectors.get(int.user.id)) {
-    collectors.get(int.user.id).stop('overlap')
-  }
-
   const fmt = engine.formatDiscord(component)
   if (!fmt) {
     const text = `Could not display info. Template for \`${component.category}\` not found.`
-    if (int.replied) return int.editReply(text)
-    return int.reply(text)
+    return sendInteraction(int, text)
   }
 
   const embed = makeEmbed(bot, fmt)
     .setFooter({ text: 'Type "exit" to close this prompt' })
 
-  if (int.replied) await int.editReply({ embeds: [embed] })
-  else await int.reply({ embeds: [embed] })
-
-  const filter = m => {
-    if (m.author.id !== int.user.id) return false
-    return m.content.toLowerCase() === 'exit'
-  }
-
-  const collector = int.channel.createMessageCollector({ filter, max: 1, time: 60000 })
-  collectors.set(int.user.id, collector)
-
-  collector.on('collect', async col => {
-    await col.delete().catch(() => {})
-    if (col.content.toLowerCase() === 'exit') return int.deleteReply()
-  })
-
-  collector.on('end', () => collectors.delete(int.user.id))
+  await sendInteraction(int, { embeds: [embed] })
+  collectInput(int, {})
 }
 
 module.exports = {

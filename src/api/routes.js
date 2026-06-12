@@ -4,7 +4,7 @@ function createRoutes (engine) {
   const router = Router()
 
   // GET /api/search?q=text&category=cases&limit=50
-router.get('/search', (req, res) => {
+  router.get('/search', (req, res) => {
     const { q, category, limit } = req.query
 
     if (!q) {
@@ -30,13 +30,13 @@ router.get('/search', (req, res) => {
   })
 
   // GET /api/categories
-router.get('/categories', (req, res) => {
+  router.get('/categories', (req, res) => {
     const categories = engine.getCategories()
     res.json({ categories })
   })
 
   // GET /api/components/:category
-router.get('/components/:category', (req, res) => {
+  router.get('/components/:category', (req, res) => {
     const { category } = req.params
     const categories = engine.getCategories()
 
@@ -47,7 +47,7 @@ router.get('/components/:category', (req, res) => {
       })
     }
 
-    const items = engine.searchEngine.getByCategory(category)
+    const items = engine.getByCategory(category)
     const formatted = items.map(r => engine.formatJSON(r))
 
     res.json({
@@ -58,7 +58,7 @@ router.get('/components/:category', (req, res) => {
   })
 
   // GET /api/health
-router.get('/health', (req, res) => {
+  router.get('/health', (req, res) => {
     res.json(engine.getStats())
   })
 

@@ -3,7 +3,7 @@ const { AUTHOR_ID } = process.env
 async function run (engine, bot, msg) {
   if (msg.author.id !== AUTHOR_ID) return
 
-  for (const [name, cmd] of bot.slashCommands) {
+  for (const cmd of bot.slashCommands.values()) {
     const command = await bot.application?.commands.create(cmd.info.data)
     if (command) {
       console.info(`[discord] Deployed slash command: ${command.name}`)

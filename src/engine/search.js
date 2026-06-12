@@ -15,19 +15,13 @@ class SearchEngine {
   }
 
   search (query, { category, threshold, limit } = {}) {
-    const opts = {
+    const pool = category ? this.getByCategory(category) : this.items
+
+    return fuzzysort.go(query, pool, {
       key: 'INDEX',
       threshold: threshold ?? DEFAULT_OPTIONS.threshold,
       limit: limit ?? DEFAULT_OPTIONS.limit
-    }
-
-    let results = fuzzysort.go(query, this.items, opts).map(r => r.obj)
-
-    if (category) {
-      results = results.filter(r => r.category === category)
-    }
-
-    return results
+    }).map(r => r.obj)
   }
 
   getCategories () {

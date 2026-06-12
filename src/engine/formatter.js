@@ -1,12 +1,15 @@
 const TEMPLATE_RE = /{{(.*?)}}/gs
 
+function normalizeValue (value) {
+  if (value === 'Y') return 'Yes'
+  if (!value) return '-'
+  return String(value).replace(/\n/g, ' ')
+}
+
 // Replaces {{FieldName}} placeholders with actual values from the component
 function renderTemplate (template, component, { markdown = true } = {}) {
   return template.replace(TEMPLATE_RE, (match, key) => {
-    let value = component[key]
-    if (value === 'Y') value = 'Yes'
-    if (!value) value = '-'
-    value = String(value).replace(/\n/g, ' ')
+    let value = normalizeValue(component[key])
     if (!markdown) value = value.replace(/\*+/g, '')
     return value
   })
@@ -29,10 +32,7 @@ function formatComponentJSON (component, templates) {
   const data = {}
   for (const key of Object.keys(component)) {
     if (key === 'INDEX' || key === 'category') continue
-    let value = component[key]
-    if (value === 'Y') value = 'Yes'
-    if (!value) value = '-'
-    data[key] = String(value).replace(/\n/g, ' ')
+    data[key] = normalizeValue(component[key])
   }
 
   return {

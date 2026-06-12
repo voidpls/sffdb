@@ -1,6 +1,7 @@
 require('dotenv').config()
 const { Client, Collection, GatewayIntentBits } = require('discord.js')
 const fs = require('fs').promises
+const path = require('path')
 const QueryEngine = require('../engine')
 const config = require('../config')
 
@@ -16,25 +17,19 @@ async function startBot () {
   bot.slashCommands = new Collection()
   bot.commands = new Collection()
 
-  const slashFiles = (await fs.readdir('./src/bot/commands')).filter(f => f.endsWith('.js'))
-  for (const file of slashFiles) {
+  const commandFiles = (await fs.readdir(path.join(__dirname, 'commands'))).filter(f => f.endsWith('.js'))
+  for (const file of commandFiles) {
     const cmd = require(`./commands/${file}`)
     bot.slashCommands.set(cmd.info.name, cmd)
-  }
-  console.log(`[discord] Loaded ${bot.slashCommands.size} slash commands`)
 
-  if (BOT_PREFIX) {
-    const legacyFiles = (await fs.readdir('./src/bot/commands')).filter(f => f.endsWith('.js'))
-    for (const file of legacyFiles) {
-      const cmd = require(`./commands/${file}`)
-      if (cmd.info.aliases) {
-        bot.commands.set(cmd.info.name, cmd)
-        for (const alias of cmd.info.aliases) {
-          bot.commands.set(alias, cmd)
-        }
+    if (BOT_PREFIX && cmd.info.aliases) {
+      bot.commands.set(cmd.info.name, cmd)
+      for (const alias of cmd.info.aliases) {
+        bot.commands.set(alias, cmd)
       }
     }
   }
+  console.log(`[discord] Loaded ${bot.slashCommands.size} slash commands`)
 
   bot.once('ready', async () => {
     console.info(`[discord] Connected as ${bot.user.username}`)

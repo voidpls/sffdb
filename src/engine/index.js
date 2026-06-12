@@ -84,6 +84,10 @@ class QueryEngine {
     return this.searchEngine.getCategories()
   }
 
+  getByCategory (category) {
+    return this.searchEngine.getByCategory(category)
+  }
+
   formatDiscord (component) {
     return formatComponent(component, this.templates)
   }
