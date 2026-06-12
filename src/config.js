@@ -5,6 +5,23 @@ module.exports = {
     refreshIntervalMs: 30 * 60_000
   },
 
+  agent: {
+    enabled: true,
+    model: 'deepseek-v4-flash',
+    maxSteps: 6,
+    cooldownMs: 30_000,
+    maxResults: 10,
+    timeoutMs: 60_000,
+    margins: {
+      gpuRiser: 15,
+      gpu8pin: 30,
+      gpu12vhpwr: 45,
+      aioServiceMm: 8,
+      coolerMarginMm: 4,
+      slimFanMm: 15
+    }
+  },
+
   links: {
     description:
       '[SFF PC Masterlist](https://bit.ly/30BJn2S) - by <@453436176490037250>\n' +
@@ -113,6 +130,49 @@ module.exports = {
           '**Thickness (Height)**: {{Thickness (mm)}}mm\n' +
           '**GPU Fans**: {{Fans}}\n' +
           '**Watercooled**: {{Watercooled}}'
+      }
+    },
+
+    aliases: {
+      Cases: {
+        volume: 'Volume (L)',
+        footprint: 'Footprint (cm2)',
+        case_length: 'Case Length (mm)',
+        case_width: 'Case Width (mm)',
+        case_height: 'Case Height (mm)',
+        cooler_height: 'CPU Cooler Height (mm)',
+        gpu_length: 'GPU Length (mm)',
+        gpu_width: 'GPU Width (mm)',
+        gpu_thickness: 'GPU Height / Thickness (mm)',
+        pcie_slot: 'PCIe Slot',
+        psu: 'PSU',
+        motherboard: 'Motherboard',
+        price_usd: 'Price (USD)',
+        style: 'Style'
+      },
+      'Graphics Cards': {
+        length: 'Length (mm)',
+        width: 'Width (mm)',
+        thickness: 'Thickness (mm)',
+        tdp: 'TDP (W)',
+        memory: 'Memory'
+      },
+      'Coolers (AIO)': {
+        radiator_type: 'Radiator Type',
+        radiator_length: 'Radiator Length (mm)',
+        radiator_thickness: 'Radiator Thickness (mm)',
+        rad_fan_thickness: 'Rad + Fan Total Thickness (mm)',
+        block_height: 'CPU Block Height (mm)',
+        fans: 'Fans'
+      },
+      'Coolers (Air)': {
+        height: 'Height (mm)',
+        ram_clearance: 'RAM Clearance (mm)',
+        fans: 'Fans'
+      },
+      'Slim Fans': {
+        fan_size: 'Fan Size (mm)',
+        thickness: 'Thickness (mm)'
       }
     }
   },
