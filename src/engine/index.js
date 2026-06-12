@@ -1,6 +1,8 @@
 const SheetsFetcher = require('./sheets')
 const SearchEngine = require('./search')
 const { formatComponent, formatComponentJSON } = require('./formatter')
+const { queryComponents } = require('./query')
+const { buildCatalog } = require('./catalog')
 const config = require('../config')
 
 class QueryEngine {
@@ -16,6 +18,7 @@ class QueryEngine {
     this.tabs = tabs
     this.templates = config.sheets.formatting
     this.lastRefresh = null
+    this.catalog = {}
   }
 
   async init () {
@@ -26,6 +29,7 @@ class QueryEngine {
     const raw = await this.fetcher.fetch(this.tabs)
     const items = this.buildIndex(raw)
     this.searchEngine.load(items)
+    this.rebuildCatalog()
     this.lastRefresh = new Date()
     console.info(`[engine] Indexed ${items.length} components across ${this.searchEngine.getCategories().length} categories`)
     return items.length
@@ -86,6 +90,21 @@ class QueryEngine {
 
   getByCategory (category) {
     return this.searchEngine.getByCategory(category)
+  }
+
+  rebuildCatalog () {
+    this.catalog = buildCatalog(this.searchEngine.items, config.sheets.aliases)
+  }
+
+  query (spec) {
+    return queryComponents(this.searchEngine.items, spec, {
+      aliases: config.sheets.aliases,
+      maxResults: config.agent.maxResults
+    })
+  }
+
+  getCatalog () {
+    return this.catalog
   }
 
   formatDiscord (component) {
