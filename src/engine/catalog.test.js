@@ -36,6 +36,17 @@ test('infers bool type for Y/- columns', () => {
   assert.strictEqual(flashback.type, 'bool')
 })
 
+test('does not treat letter-led text as numeric', () => {
+  const gpus = [
+    { category: 'Graphics Cards', Model: 'RTX 4090', INDEX: 'a', simpleModel: '' },
+    { category: 'Graphics Cards', Model: 'RTX 4080 Super', INDEX: 'b', simpleModel: '' },
+    { category: 'Graphics Cards', Model: 'RX 7900 XTX', INDEX: 'c', simpleModel: '' }
+  ]
+  const cat = buildCatalog(gpus)
+  const model = cat['Graphics Cards'].find(f => f.header === 'Model')
+  assert.notStrictEqual(model.type, 'number')
+})
+
 test('infers enum type with capped values', () => {
   const cat = buildCatalog(items, aliases)
   const psu = cat.Cases.find(f => f.header === 'PSU')

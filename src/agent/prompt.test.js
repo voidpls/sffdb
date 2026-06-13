@@ -23,9 +23,9 @@ test('includes the margin numbers', () => {
   assert.match(prompt, /45mm/)
 })
 
-test('states scope and the disclaimer', () => {
+test('states tool names and answer-style guidance', () => {
   const prompt = buildSystemPrompt(catalog, margins)
-  assert.match(prompt, /verify/i)
   assert.match(prompt, /search_components/)
   assert.match(prompt, /query_components/)
+  assert.match(prompt, /Answer style/i)
 })

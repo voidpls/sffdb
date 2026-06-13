@@ -29,18 +29,22 @@ function resolveField (field, aliasMap, sample) {
   return null
 }
 
-function projectRow (row, select, aliasMap, sample) {
+// Strips internal bookkeeping fields, returning the raw component values
+function stripInternal (row) {
   const out = {}
-  if (select && select.length) {
-    for (const f of select) {
-      const header = resolveField(f, aliasMap, sample) || f
-      out[header] = row[header]
-    }
-  } else {
-    for (const key of Object.keys(row)) {
-      if (key === 'INDEX' || key === 'simpleModel' || key === 'category') continue
-      out[key] = row[key]
-    }
+  for (const key of Object.keys(row)) {
+    if (key === 'INDEX' || key === 'simpleModel' || key === 'category') continue
+    out[key] = row[key]
+  }
+  return out
+}
+
+function projectRow (row, select, aliasMap, sample) {
+  if (!select || !select.length) return stripInternal(row)
+  const out = {}
+  for (const f of select) {
+    const header = resolveField(f, aliasMap, sample) || f
+    out[header] = row[header]
   }
   return out
 }
@@ -87,7 +91,7 @@ function queryComponents (items, spec = {}, opts = {}) {
   const total = rows.length
   const cap = Math.min(limit || maxResults, maxResults)
   const results = rows.slice(0, cap).map(row => projectRow(row, select, aliasMap, sample))
-  return { count: total, returned: results.length, results }
+  return { count: total, returned: results.length, truncated: total > results.length, results }
 }
 
-module.exports = { queryComponents, toNumber }
+module.exports = { queryComponents, toNumber, stripInternal }

@@ -8,14 +8,16 @@ module.exports = {
   agent: {
     enabled: true,
     model: 'deepseek-v4-flash',
-    maxSteps: 6,
-    cooldownMs: 30_000,
-    maxResults: 10,
+    thinking: true,
+    maxSteps: 10,
+    cooldownMs: 5_000,
+    logReasoning: process.env.AGENT_DEBUG === 'true',
+    maxResults: 40,
     timeoutMs: 60_000,
     margins: {
       gpuRiser: 15,
       gpu8pin: 30,
-      gpu12vhpwr: 45,
+      gpu12vhpwr: 35,
       aioServiceMm: 8,
       coolerMarginMm: 4,
       slimFanMm: 15
@@ -30,14 +32,16 @@ module.exports = {
   },
 
   sheets: {
-    spreadsheetId: process.env.SHEETS_SPREADSHEET_ID || '1AddRvGWJ_f4B6UC7_IftDiVudVc8CJ8sxLUqlxVsCz4',
+    spreadsheetId:
+      process.env.SHEETS_SPREADSHEET_ID ||
+      '1AddRvGWJ_f4B6UC7_IftDiVudVc8CJ8sxLUqlxVsCz4',
 
     tabs: {
       'SFF Case <10L': { category: 'Cases' },
       'SFF Case 10L-20L': { category: 'Cases' },
       'MFF Case >20L': { category: 'Cases' },
       'CPU Cooler <70mm': { category: 'Coolers (Air)' },
-      'AIO': { category: 'Coolers (AIO)' },
+      AIO: { category: 'Coolers (AIO)' },
       'Slim Fan': { category: 'Slim Fans' },
       'mITX Boards': { category: 'Mobos (ITX)' },
       'SFF GPU <215mm': { category: 'Graphics Cards' },

@@ -13,10 +13,9 @@ function inferType (values) {
   const isBool = vals.every(v => ['y', 'n', 'yes', 'no'].includes(String(v).trim().toLowerCase()))
   if (isBool) return 'bool'
 
-  const numeric = vals.filter(v => {
-    const n = parseFloat(String(v).replace(/[^0-9.-]/g, ''))
-    return Number.isFinite(n)
-  })
+  // A value is numeric only if it STARTS with a number (optionally followed by a
+  // unit), so text like "RTX 4090" is not misread as the number 4090.
+  const numeric = vals.filter(v => /^-?\d+(\.\d+)?\s*[a-zA-Z%²"]*$/.test(String(v).trim()))
   if (numeric.length / vals.length >= 0.7) return 'number'
 
   const distinct = new Set(vals.map(v => String(v).trim()))

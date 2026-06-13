@@ -122,3 +122,5 @@ AGENTS.md
 .yarn/install-state.gz
 .pnp.*
 .DS_Store
+/SFF PC Master List
+/docs

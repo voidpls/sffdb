@@ -34,10 +34,16 @@ test('contains op is case-insensitive', () => {
   assert.strictEqual(res.count, 2)
 })
 
-test('limit is clamped to maxResults', () => {
+test('limit is clamped to maxResults and flags truncation', () => {
   const res = queryComponents(items, { category: 'Cases', limit: 99 }, { aliases, maxResults: 2 })
   assert.strictEqual(res.results.length, 2)
   assert.strictEqual(res.count, 3)
+  assert.strictEqual(res.truncated, true)
+})
+
+test('truncated is false when all rows are returned', () => {
+  const res = queryComponents(items, { category: 'Cases' }, { aliases, maxResults: 50 })
+  assert.strictEqual(res.truncated, false)
 })
 
 test('unknown field returns an error with validFields', () => {
