@@ -31,6 +31,8 @@ test('research prompt has tools, catalog defaults, and fit recipe', () => {
   assert.match(prompt, /Union of \(a\)\(b\)\(c\)/)
   assert.match(prompt, /Stop probing/)
   assert.match(prompt, /do not re-search the same case/)
+  assert.match(prompt, /bare_chip_browse reject/)
+  assert.match(prompt, /never chip-only again/)
   assert.doesNotMatch(prompt, /AIO: needs the radiator/)
 })
 

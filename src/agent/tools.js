@@ -6,7 +6,7 @@ const config = require('../config')
 function buildTools (engine) {
   return {
     search_components: tool({
-      description: 'Resolve a NAMED component the user mentioned (a specific case, GPU, cooler, fan). Returns (*) default fields for that category. Do not use this to browse or enumerate variants — use query_components for that.',
+      description: 'Resolve a NAMED component the user mentioned (a specific case, GPU SKU, cooler, fan). Returns (*) default fields for that category. Do NOT use for GPU chip families (5080, 4090, 1080, XTX, etc.) — use query_components with the fit recipe instead. Never browse variants.',
       inputSchema: z.object({
         query: z.string().describe('The component name to search for'),
         category: z.string().optional().describe('Optional category to restrict the search'),
