@@ -47,4 +47,6 @@ test('format nudge has Discord rules and answer caveats', () => {
   assert.match(nudge, /90° adapter/)
   assert.match(nudge, /Answer style/i)
   assert.match(nudge, /Do not call any tools/)
+  assert.match(nudge, /first sentence is the verdict/)
+  assert.match(nudge, /one sentence what you won't do/)
 })

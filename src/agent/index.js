@@ -83,8 +83,8 @@ function accumulateStepTokens (steps, formatFromIndex) {
   return { researchTokens: research, formatTokens: format }
 }
 
-function needsFormatPass ({ steps, text }) {
-  return summarizeSteps(steps).length > 0 || !text?.trim()
+function needsFormatPass ({ steps }) {
+  return formatStepIndex(steps) === null
 }
 
 function formatStepIndex (steps) {
@@ -114,6 +114,7 @@ function createAgent (engine, { thinking } = {}) {
   return async function runAgent (question, { onStepFinish, onFormatStart, signal } = {}) {
     const start = Date.now()
     const system = buildResearchPrompt(engine.getCatalog())
+    const formatNudge = buildFormatNudge(config.agent.margins)
     const model = deepseek(config.agent.model)
     let researchMs = 0
     let formatMs = 0
@@ -140,8 +141,9 @@ function createAgent (engine, { thinking } = {}) {
           if (stepNumber !== config.agent.maxSteps) return
           onFormatStart?.()
           return {
-            messages: [...messages, { role: 'user', content: buildFormatNudge(config.agent.margins) }],
-            toolChoice: 'none'
+            messages: [...messages, { role: 'user', content: formatNudge }],
+            toolChoice: 'none',
+            providerOptions
           }
         },
         onStepFinish: onStepFinishWithTiming
@@ -150,8 +152,7 @@ function createAgent (engine, { thinking } = {}) {
       let steps = result.steps
       let formatFromIndex = formatStepIndex(steps)
 
-      // Model stopped early with text — format wasn't reached via prepareStep
-      if (formatFromIndex === null && needsFormatPass({ steps, text: result.text })) {
+      if (needsFormatPass({ steps })) {
         onFormatStart?.()
         const formatStart = Date.now()
         const formatResult = await generateText({
@@ -160,7 +161,7 @@ function createAgent (engine, { thinking } = {}) {
           messages: [
             { role: 'user', content: question },
             ...result.response.messages,
-            { role: 'user', content: buildFormatNudge(config.agent.margins) }
+            { role: 'user', content: formatNudge }
           ],
           tools,
           providerOptions,

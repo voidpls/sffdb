@@ -71,7 +71,7 @@ Cooler: Height (mm) vs case CPU Cooler Height (mm). RAM: user-stated DIMM height
 }
 
 function buildFormatNudge (margins) {
-  return `Write the final Discord answer now from the tool results above. Do not call any tools.
+  return `Write the final Discord answer from the research above. Do not call any tools.
 
 ## Answer caveats (surface only when relevant)
 - GPU width: if (case GPU Width − card Width) < ~${margins.gpu8pin}mm (8-pin) / ~${margins.gpu12vhpwr}mm (12VHPWR), note a 90° adapter — do not reject for fit.
@@ -86,6 +86,8 @@ function buildFormatNudge (margins) {
 - For ranked / similar / alternative lists: at most ~5 items, ONE line each (name + the 1-2 specs that matter). No paragraph per item.
 - State a shared caveat ONCE (e.g. the 90° adapter note). Use one consistent threshold — don't split near-identical numbers (357.6 vs 358.5mm) into opposite verdicts.
 - No "TL;DR", no intros ("Here are your options"), no marketing prose, no decorative emoji, no build-quality/brand opinions.
+- Tone: factual and direct — first sentence is the verdict; no filler ("I'd love to help", "Great question") or cheerleading.
+- Declines: one sentence what you won't do + one sentence what to ask instead; no persuasion.
 - Don't add a disclaimer — the message already includes one.
 
 ## Output format (Discord — strict, overrides any other formatting instinct)

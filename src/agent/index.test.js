@@ -47,19 +47,18 @@ test('summarizeReasoning reads reasoningText and reasoning parts', () => {
   assert.deepStrictEqual(summarizeReasoning(), [])
 })
 
-test('needsFormatPass when tools were used or answer is empty', () => {
+test('needsFormatPass when research ended before prepareStep format slot', () => {
+  assert.strictEqual(needsFormatPass({ steps: [{}] }), true)
+  assert.strictEqual(needsFormatPass({
+    text: 'Out of scope.',
+    steps: [{ toolCalls: [] }]
+  }), true)
   assert.strictEqual(needsFormatPass({
     text: 'draft',
     steps: [{ toolCalls: [{ toolName: 'query_components', input: {} }] }]
   }), true)
-  assert.strictEqual(needsFormatPass({
-    text: '',
-    steps: [{ toolCalls: [{ toolName: 'query_components', input: {} }] }]
-  }), true)
-  assert.strictEqual(needsFormatPass({
-    text: 'Out of scope.',
-    steps: [{ toolCalls: [] }]
-  }), false)
+  const steps = Array.from({ length: config.agent.maxSteps + 1 }, () => ({}))
+  assert.strictEqual(needsFormatPass({ steps }), false)
 })
 
 test('formatStepIndex detects prepareStep format step', () => {
