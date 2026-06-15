@@ -62,6 +62,13 @@ async function run (engine, bot, int) {
             )
             .catch(() => {})
         }
+      },
+      onFormatStart: () => {
+        int
+          .editReply(
+            '<a:typing:1516013194777329725> Synthesizing answer...'
+          )
+          .catch(() => {})
       }
     })
 

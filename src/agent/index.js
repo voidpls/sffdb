@@ -111,7 +111,7 @@ function createAgent (engine, { thinking } = {}) {
     deepseek: { thinking: { type: thinkingType } }
   }
 
-  return async function runAgent (question, { onStepFinish, signal } = {}) {
+  return async function runAgent (question, { onStepFinish, onFormatStart, signal } = {}) {
     const start = Date.now()
     const system = buildResearchPrompt(engine.getCatalog())
     const model = deepseek(config.agent.model)
@@ -138,6 +138,7 @@ function createAgent (engine, { thinking } = {}) {
         stopWhen: ({ steps }) => steps.length > config.agent.maxSteps,
         prepareStep: ({ stepNumber, messages }) => {
           if (stepNumber !== config.agent.maxSteps) return
+          onFormatStart?.()
           return {
             messages: [...messages, { role: 'user', content: buildFormatNudge(config.agent.margins) }],
             toolChoice: 'none'
@@ -151,6 +152,7 @@ function createAgent (engine, { thinking } = {}) {
 
       // Model stopped early with text — format wasn't reached via prepareStep
       if (formatFromIndex === null && needsFormatPass({ steps, text: result.text })) {
+        onFormatStart?.()
         const formatStart = Date.now()
         const formatResult = await generateText({
           model,
