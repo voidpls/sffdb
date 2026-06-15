@@ -10,11 +10,11 @@ module.exports = {
     model: 'deepseek-v4-flash',
     thinking: true,
     maxSteps: 10,
-    cooldownMs: 5_000,
+    cooldownMs: 30_000,
     logReasoning: process.env.AGENT_DEBUG === 'true',
     maxResults: 30,
     rejectBareChipBrowse: process.env.AGENT_REJECT_BARE_CHIP !== '0',
-    timeoutMs: 90_000,
+    timeoutMs: 75_000,
     // Fit-relevant fields returned by tools when select is omitted (pass select for full specs)
     defaultSelect: {
       Cases: [
