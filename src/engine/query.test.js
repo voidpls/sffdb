@@ -1,7 +1,7 @@
 const { test } = require('node:test')
 const assert = require('node:assert')
 const config = require('../config')
-const { queryComponents, analyzeGenerousGpuFit } = require('./query')
+const { queryComponents, analyzeGenerousGpuFit, buildQueryHint, isFitQuery } = require('./query')
 
 const items = [
   { category: 'Cases', Seller: 'Velka', Case: '5', 'Volume (L)': '3.9', 'GPU Length (mm)': '?', 'CPU Cooler Height (mm)': '48', PSU: 'Flex', INDEX: 'Velka 5' },
@@ -46,6 +46,46 @@ test('limit is clamped to maxResults, flags truncation, and adds hint', () => {
   const complete = queryComponents(items, { category: 'Cases' }, { aliases, maxResults: 50 })
   assert.strictEqual(complete.truncated, false)
   assert.strictEqual(complete.hint, undefined)
+})
+
+test('zero-result GPU fit query adds stop-probing hint', () => {
+  const gpuItems = [
+    { category: 'Graphics Cards', Brand: 'Nvidia', Model: 'RTX 4090', Name: 'FE', 'Length (mm)': '304', 'Width (mm)': '137', 'Thickness (mm)': '40', Watercooled: 'Y', INDEX: '4090 fe' }
+  ]
+  const res = queryComponents(gpuItems, {
+    category: 'Graphics Cards',
+    where: [
+      { field: 'Model', op: 'contains', value: '4090' },
+      { field: 'Length (mm)', op: 'lte', value: 200 },
+      { field: 'Width (mm)', op: 'lte', value: 144 },
+      { field: 'Thickness (mm)', op: 'lte', value: 45 }
+    ]
+  }, opts)
+  assert.strictEqual(res.count, 0)
+  assert.strictEqual(res.truncated, false)
+  assert.match(res.hint, /Zero matches/)
+  assert.match(res.hint, /do not probe further/)
+})
+
+test('zero-result non-fit query has no hint', () => {
+  const res = queryComponents(items, {
+    category: 'Cases',
+    where: [{ field: 'Case', op: 'eq', value: 'NonexistentCaseXYZ' }]
+  }, opts)
+  assert.strictEqual(res.count, 0)
+  assert.strictEqual(res.hint, undefined)
+})
+
+test('buildQueryHint zero branch only for fit queries', () => {
+  assert.match(buildQueryHint(0, 0, false, true), /Zero matches/)
+  assert.strictEqual(buildQueryHint(0, 0, false, false), undefined)
+})
+
+test('isFitQuery detects GPU and cooler fit queries', () => {
+  const sample = { 'Length (mm)': '300', 'Height (mm)': '50' }
+  assert.strictEqual(isFitQuery('Graphics Cards', [{ field: 'Length (mm)', op: 'lte', value: 300 }], {}, sample), true)
+  assert.strictEqual(isFitQuery('Graphics Cards', [{ field: 'Model', op: 'contains', value: '4090' }], {}, sample), false)
+  assert.strictEqual(isFitQuery('Coolers (Air)', [{ field: 'Height (mm)', op: 'lte', value: 70 }], {}, sample), true)
 })
 
 test('default select omits non-default fields', () => {

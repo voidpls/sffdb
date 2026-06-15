@@ -75,10 +75,32 @@ function slimComponent (row, aliasesByCategory = {}, defaultSelectByCategory = {
   return { category, ...projectRow(row, select, aliasMap, row) }
 }
 
-function buildQueryHint (total, returned, truncated) {
-  if (!truncated) return undefined
-  const scale = total >= 100 ? `${total} matches (100+ variants)` : `${total} matches`
-  return `${scale} (${returned} returned) — never browse or paginate. Use fit recipe: tight case → all lte limits in one where; generous case → three gt exception queries (length, width, thickness).`
+function buildQueryHint (total, returned, truncated, fitQuery = false) {
+  if (truncated) {
+    const scale = total >= 100 ? `${total} matches (100+ variants)` : `${total} matches`
+    return `${scale} (${returned} returned) — never browse or paginate. Use fit recipe: tight case → all lte limits in one where; generous case → three gt exception queries (length, width, thickness).`
+  }
+  if (total === 0 && fitQuery) {
+    return 'Zero matches — answer does not fit; do not probe further.'
+  }
+  return undefined
+}
+
+function isFitQuery (category, where, aliasMap, sample) {
+  if (!where?.length) return false
+  if (category === 'Graphics Cards') {
+    return where.some(cond => {
+      const header = resolveField(cond.field, aliasMap, sample) || cond.field
+      return GPU_DIM_FIELDS.test(header)
+    })
+  }
+  if (category === 'Coolers (Air)') {
+    return where.some(cond => {
+      const header = resolveField(cond.field, aliasMap, sample) || cond.field
+      return /^height \(mm\)$/i.test(header)
+    })
+  }
+  return false
 }
 
 const GPU_CHIP_FIELDS = /^model$|^name$|^gpu$/i
@@ -181,7 +203,7 @@ function queryComponents (items, spec = {}, opts = {}) {
   const results = rows.slice(0, cap).map(row => projectRow(row, effectiveSelect, aliasMap, sample))
   const truncated = total > results.length
   const out = { count: total, returned: results.length, truncated, results }
-  const hint = buildQueryHint(total, results.length, truncated)
+  const hint = buildQueryHint(total, results.length, truncated, isFitQuery(category, where, aliasMap, sample))
   if (hint) out.hint = hint
   return out
 }
@@ -195,5 +217,6 @@ module.exports = {
   buildEffectiveSelect,
   projectRow,
   slimComponent,
-  buildQueryHint
+  buildQueryHint,
+  isFitQuery
 }

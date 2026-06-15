@@ -29,6 +29,8 @@ test('research prompt has tools, catalog defaults, and fit recipe', () => {
   assert.match(prompt, /Width \(mm\) gt case GPU width limit/)
   assert.match(prompt, /Thickness \(mm\) gt case GPU thickness limit/)
   assert.match(prompt, /Union of \(a\)\(b\)\(c\)/)
+  assert.match(prompt, /Stop probing/)
+  assert.match(prompt, /do not re-search the same case/)
   assert.doesNotMatch(prompt, /AIO: needs the radiator/)
 })
 

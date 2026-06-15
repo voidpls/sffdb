@@ -28,6 +28,8 @@ function buildResearchPrompt (catalog) {
 - Numbers as numbers (e.g. 45, not "45"); use catalog headers or aliases.
 - Omit select — tools return (*) fields automatically.
 - truncated + hint: follow hint; never change only sort/limit to page. When a fit query is complete (not truncated), STOP — no separate axis checks or chip re-browse.
+- Stop probing: after a fit query returns count 0 and truncated is false, STOP and answer (none fit / no matches). Do not chip re-browse, run limit-1 probes, or hunt alternate spellings.
+- After search_components resolves a case, use those limits — do not re-search the same case under alternate names or spellings.
 - Categorical wording only (PSU, Style, Motherboard): ONE small probe query to read values, then filter — never for GPU chip families (100+ variants).
 - GPU fit in case: (1) search_components the case → GPU Length/Width/Thickness limits and PCIe slots. (2) ONE path — do not mix:
   • **Tight** (GPU thickness limit ≤50mm, ≤2 PCIe slots, or GPU length ≤310mm): Model contains "<chip>" AND Length/Width/Thickness (mm) each lte case limit. Stop if not truncated.
