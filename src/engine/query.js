@@ -39,8 +39,27 @@ function stripInternal (row) {
   return out
 }
 
+function buildEffectiveSelect (spec, aliasMap, sample, defaultSelectByCategory = {}) {
+  if (spec.select?.length) return spec.select
+
+  const defaults = defaultSelectByCategory[spec.category] || []
+  const extra = []
+  for (const cond of spec.where || []) extra.push(cond.field)
+  if (spec.sort?.field) extra.push(spec.sort.field)
+
+  const seen = new Set()
+  const out = []
+  for (const f of [...defaults, ...extra]) {
+    const header = resolveField(f, aliasMap, sample) || f
+    if (seen.has(header)) continue
+    seen.add(header)
+    out.push(f)
+  }
+  return out
+}
+
 function projectRow (row, select, aliasMap, sample) {
-  if (!select || !select.length) return stripInternal(row)
+  if (!select?.length) return stripInternal(row)
   const out = {}
   for (const f of select) {
     const header = resolveField(f, aliasMap, sample) || f
@@ -49,9 +68,70 @@ function projectRow (row, select, aliasMap, sample) {
   return out
 }
 
+function slimComponent (row, aliasesByCategory = {}, defaultSelectByCategory = {}) {
+  const category = row.category
+  const aliasMap = aliasesByCategory[category] || {}
+  const select = buildEffectiveSelect({ category }, aliasMap, row, defaultSelectByCategory)
+  return { category, ...projectRow(row, select, aliasMap, row) }
+}
+
+function buildQueryHint (total, returned, truncated) {
+  if (!truncated) return undefined
+  const scale = total >= 100 ? `${total} matches (100+ variants)` : `${total} matches`
+  return `${scale} (${returned} returned) — never browse or paginate. Use fit recipe: tight case → all lte limits in one where; generous case → three gt exception queries (length, width, thickness).`
+}
+
+const GPU_CHIP_FIELDS = /^model$|^name$|^gpu$/i
+const GPU_LENGTH_FIELD = /^length \(mm\)$/i
+const GPU_WIDTH_FIELD = /^width \(mm\)$/i
+const GPU_THICKNESS_FIELD = /^thickness \(mm\)$/i
+const GPU_DIM_FIELDS = /^length \(mm\)$|^width \(mm\)$|^thickness \(mm\)$/i
+const CHIP_FAMILY = /\d{4}/
+
+function analyzeGenerousGpuFit (specs = []) {
+  const flags = { lengthGt: false, widthGt: false, thicknessGt: false, complete: false }
+  for (const spec of specs) {
+    if (spec?.category !== 'Graphics Cards' || !spec.where?.length) continue
+    let chipFamily = false
+    for (const cond of spec.where) {
+      const field = String(cond.field ?? '').trim()
+      if (cond.op === 'contains' && GPU_CHIP_FIELDS.test(field) && CHIP_FAMILY.test(String(cond.value ?? ''))) {
+        chipFamily = true
+      }
+    }
+    if (!chipFamily) continue
+    for (const cond of spec.where) {
+      const field = String(cond.field ?? '').trim()
+      if (cond.op !== 'gt') continue
+      if (GPU_LENGTH_FIELD.test(field)) flags.lengthGt = true
+      if (GPU_WIDTH_FIELD.test(field)) flags.widthGt = true
+      if (GPU_THICKNESS_FIELD.test(field)) flags.thicknessGt = true
+    }
+  }
+  flags.complete = flags.lengthGt && flags.widthGt && flags.thicknessGt
+  return flags
+}
+
+function isBareChipBrowse (category, where, aliasMap, sample) {
+  if (category !== 'Graphics Cards' || !where.length) return false
+
+  let chipFamily = false
+  let hasDim = false
+
+  for (const cond of where) {
+    const header = resolveField(cond.field, aliasMap, sample) || cond.field
+    if (GPU_DIM_FIELDS.test(header)) hasDim = true
+    if (cond.op === 'contains' && GPU_CHIP_FIELDS.test(header.trim())) {
+      if (CHIP_FAMILY.test(String(cond.value ?? ''))) chipFamily = true
+    }
+  }
+
+  return chipFamily && !hasDim
+}
+
 function queryComponents (items, spec = {}, opts = {}) {
-  const { category, where = [], sort, limit, select } = spec
-  const { aliases = {}, maxResults = 10 } = opts
+  const { category, where = [], sort, limit } = spec
+  const { aliases = {}, maxResults = 10, defaultSelect = {}, rejectBareChipBrowse = false } = opts
   const aliasMap = aliases[category] || {}
 
   let rows = items.filter(i => i.category === category)
@@ -69,6 +149,13 @@ function queryComponents (items, spec = {}, opts = {}) {
   }
   if (sort && !resolveField(sort.field, aliasMap, sample)) {
     return { error: `Unknown sort field "${sort.field}" for ${category}`, validFields: validFields() }
+  }
+
+  if (rejectBareChipBrowse && isBareChipBrowse(category, where, aliasMap, sample)) {
+    return {
+      error: 'Chip-family browse rejected (100+ variants). Include case GPU Length/Width/Thickness limits in the same where.',
+      rejected: 'bare_chip_browse'
+    }
   }
 
   rows = rows.filter(row => where.every(cond => {
@@ -90,8 +177,23 @@ function queryComponents (items, spec = {}, opts = {}) {
 
   const total = rows.length
   const cap = Math.min(limit || maxResults, maxResults)
-  const results = rows.slice(0, cap).map(row => projectRow(row, select, aliasMap, sample))
-  return { count: total, returned: results.length, truncated: total > results.length, results }
+  const effectiveSelect = buildEffectiveSelect(spec, aliasMap, sample, defaultSelect)
+  const results = rows.slice(0, cap).map(row => projectRow(row, effectiveSelect, aliasMap, sample))
+  const truncated = total > results.length
+  const out = { count: total, returned: results.length, truncated, results }
+  const hint = buildQueryHint(total, results.length, truncated)
+  if (hint) out.hint = hint
+  return out
 }
 
-module.exports = { queryComponents, toNumber, stripInternal }
+module.exports = {
+  queryComponents,
+  isBareChipBrowse,
+  analyzeGenerousGpuFit,
+  toNumber,
+  stripInternal,
+  buildEffectiveSelect,
+  projectRow,
+  slimComponent,
+  buildQueryHint
+}

@@ -1,11 +1,12 @@
 const { tool } = require('ai')
 const { z } = require('zod')
-const { stripInternal } = require('../engine/query')
+const { slimComponent } = require('../engine/query')
+const config = require('../config')
 
 function buildTools (engine) {
   return {
     search_components: tool({
-      description: 'Resolve a NAMED component the user mentioned (a specific case, GPU, cooler, fan). Returns matches WITH their full specs. Do not use this to browse or enumerate variants — use query_components for that.',
+      description: 'Resolve a NAMED component the user mentioned (a specific case, GPU, cooler, fan). Returns (*) default fields for that category. Do not use this to browse or enumerate variants — use query_components for that.',
       inputSchema: z.object({
         query: z.string().describe('The component name to search for'),
         category: z.string().optional().describe('Optional category to restrict the search'),
@@ -16,12 +17,12 @@ function buildTools (engine) {
         const results = engine.search(query, { category, limit: cap })
         return {
           count: results.length,
-          results: results.map(r => ({ category: r.category, ...stripInternal(r) }))
+          results: results.map(r => slimComponent(r, config.sheets.aliases, config.agent.defaultSelect))
         }
       }
     }),
     query_components: tool({
-      description: 'Filter and sort a whole category server-side; returns matching components WITH their full specs (bounded top-N, never the full list). Put ALL constraints in `where` and use sort+limit. Prefer ONE call — never re-look-up the returned results individually.',
+      description: 'Filter and sort a whole category server-side; returns (*) fields by default (omit select). If select is needed, request only the minimum non-(*) fields still required. Bounded top-N, never the full list. Put ALL constraints in `where` and use sort+limit. Prefer ONE call — never re-look-up the returned results individually.',
       inputSchema: z.object({
         category: z.string(),
         where: z.array(z.object({
@@ -30,7 +31,7 @@ function buildTools (engine) {
           value: z.any().optional()
         })).optional(),
         sort: z.object({ field: z.string(), dir: z.enum(['asc', 'desc']).optional() }).optional(),
-        limit: z.number().int().min(1).max(40).optional(),
+        limit: z.number().int().min(1).max(30).optional(),
         select: z.array(z.string()).optional()
       }),
       execute: async (spec) => engine.query(spec)

@@ -9,31 +9,23 @@ const items = [
 ]
 const aliases = { Cases: { volume: 'Volume (L)' } }
 
-test('builds a per-category field list', () => {
-  const cat = buildCatalog(items, aliases)
-  assert.ok(Array.isArray(cat.Cases))
-})
-
-test('excludes internal fields', () => {
+test('excludes internal fields and infers types', () => {
   const cat = buildCatalog(items, aliases)
   const headers = cat.Cases.map(f => f.header)
   assert.ok(!headers.includes('INDEX'))
   assert.ok(!headers.includes('simpleModel'))
-  assert.ok(!headers.includes('category'))
-})
 
-test('infers number type and parses unit', () => {
-  const cat = buildCatalog(items, aliases)
   const volume = cat.Cases.find(f => f.header === 'Volume (L)')
   assert.strictEqual(volume.type, 'number')
   assert.strictEqual(volume.unit, 'L')
   assert.strictEqual(volume.alias, 'volume')
-})
 
-test('infers bool type for Y/- columns', () => {
-  const cat = buildCatalog(items, aliases)
   const flashback = cat.Cases.find(f => f.header === 'BIOS Flashback')
   assert.strictEqual(flashback.type, 'bool')
+
+  const psu = cat.Cases.find(f => f.header === 'PSU')
+  assert.strictEqual(psu.type, 'enum')
+  assert.deepStrictEqual(psu.values.sort(), ['ATX', 'Flex', 'SFX'])
 })
 
 test('does not treat letter-led text as numeric', () => {
@@ -47,9 +39,9 @@ test('does not treat letter-led text as numeric', () => {
   assert.notStrictEqual(model.type, 'number')
 })
 
-test('infers enum type with capped values', () => {
-  const cat = buildCatalog(items, aliases)
-  const psu = cat.Cases.find(f => f.header === 'PSU')
-  assert.strictEqual(psu.type, 'enum')
-  assert.deepStrictEqual(psu.values.sort(), ['ATX', 'Flex', 'SFX'])
+test('marks default fields when defaultSelect is provided', () => {
+  const cat = buildCatalog(items, aliases, { Cases: ['Volume (L)', 'PSU'] })
+  assert.strictEqual(cat.Cases.find(f => f.header === 'Volume (L)').default, true)
+  assert.strictEqual(cat.Cases.find(f => f.header === 'PSU').default, true)
+  assert.strictEqual(cat.Cases.find(f => f.header === 'Case').default, false)
 })

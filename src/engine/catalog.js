@@ -23,7 +23,7 @@ function inferType (values) {
   return 'string'
 }
 
-function buildCatalog (items, aliasesByCat = {}) {
+function buildCatalog (items, aliasesByCat = {}, defaultSelectByCategory = {}) {
   const byCat = {}
   for (const item of items) {
     (byCat[item.category] = byCat[item.category] || []).push(item)
@@ -35,11 +35,18 @@ function buildCatalog (items, aliasesByCat = {}) {
     const aliasMap = aliasesByCat[category] || {}
     const headerToAlias = {}
     for (const [alias, header] of Object.entries(aliasMap)) headerToAlias[header] = alias
+    const defaultHeaders = new Set(defaultSelectByCategory[category] || [])
 
     catalog[category] = headers.map(header => {
       const values = rows.map(r => r[header])
       const type = inferType(values)
-      const field = { header, alias: headerToAlias[header] || null, unit: parseUnit(header), type }
+      const field = {
+        header,
+        alias: headerToAlias[header] || null,
+        unit: parseUnit(header),
+        type,
+        default: defaultHeaders.has(header)
+      }
       if (type === 'enum') {
         field.values = [...new Set(values.map(v => String(v ?? '').trim()).filter(v => !SENTINELS.has(v)))].slice(0, 12)
       }

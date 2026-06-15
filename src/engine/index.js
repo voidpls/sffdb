@@ -3,6 +3,7 @@ const SearchEngine = require('./search')
 const { formatComponent, formatComponentJSON } = require('./formatter')
 const { queryComponents } = require('./query')
 const { buildCatalog } = require('./catalog')
+const { validateDefaultSelect } = require('./defaultSelect')
 const config = require('../config')
 
 class QueryEngine {
@@ -93,13 +94,23 @@ class QueryEngine {
   }
 
   rebuildCatalog () {
-    this.catalog = buildCatalog(this.searchEngine.items, config.sheets.aliases)
+    this.catalog = buildCatalog(
+      this.searchEngine.items,
+      config.sheets.aliases,
+      config.agent.defaultSelect
+    )
+    const check = validateDefaultSelect(this.catalog, config.agent.defaultSelect)
+    if (!check.ok) {
+      console.error('[engine] defaultSelect drift — missing catalog fields:', check.missing)
+    }
   }
 
   query (spec) {
     return queryComponents(this.searchEngine.items, spec, {
       aliases: config.sheets.aliases,
-      maxResults: config.agent.maxResults
+      maxResults: config.agent.maxResults,
+      defaultSelect: config.agent.defaultSelect,
+      rejectBareChipBrowse: config.agent.rejectBareChipBrowse
     })
   }
 

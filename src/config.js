@@ -12,8 +12,36 @@ module.exports = {
     maxSteps: 10,
     cooldownMs: 5_000,
     logReasoning: process.env.AGENT_DEBUG === 'true',
-    maxResults: 40,
-    timeoutMs: 60_000,
+    maxResults: 30,
+    rejectBareChipBrowse: process.env.AGENT_REJECT_BARE_CHIP !== '0',
+    timeoutMs: 90_000,
+    // Fit-relevant fields returned by tools when select is omitted (pass select for full specs)
+    defaultSelect: {
+      Cases: [
+        'Seller', 'Case', 'Volume (L)',
+        'GPU Length (mm)', 'GPU Width (mm)', 'GPU Height / Thickness (mm)', 'PCIe Slot',
+        'CPU Cooler Height (mm)', 'AIO / Radiator Support', 'PSU', 'Motherboard',
+        'Price (USD)'
+      ],
+      'Graphics Cards': [
+        'Brand', 'Model', 'Name',
+        'Length (mm)', 'Width (mm)', 'Thickness (mm)', 'Watercooled'
+      ],
+      'Coolers (Air)': [
+        'Brand', 'Cooler', 'Height (mm)', 'Length (mm)', 'Width (mm)',
+        'RAM Clearance (mm)', 'Fans', 'Fan Size (mm)'
+      ],
+      'Coolers (AIO)': [
+        'Brand', 'Model', 'Radiator Type',
+        'Radiator Length (mm)', 'Radiator Thickness (mm)', 'Rad + Fan Total Thickness (mm)',
+        'CPU Block Height (mm)', 'Fans', 'Fan Size (mm)'
+      ],
+      'Slim Fans': ['Brand', 'Model', 'Fan Size (mm)', 'Thickness (mm)'],
+      'Mobos (ITX)': [
+        'Brand', 'Name', 'CPU', 'Socket', 'Chipset',
+        'RAM Slots', 'Supported RAM Capacity (GB)', 'RAM Type', 'PCIe x16 Slot'
+      ]
+    },
     margins: {
       gpuRiser: 15,
       gpu8pin: 30,
