@@ -7,7 +7,8 @@
     "start": "node src/bot/index.js",
     "api": "node src/api/index.js",
     "dev": "node -e \"require('dotenv').config(); require('./src/bot').startBot(); require('./src/api').startAPI()\"",
-    "test": "node --test"
+    "test": "node --test",
+    "bench:regression": "node scripts/regression-bench.js"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -15,8 +16,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@ai-sdk/deepseek": "^2.0.37",
-    "ai": "^6.0.202",
+    "@ai-sdk/deepseek": "^2.0.38",
+    "ai": "^6.0.205",
     "cors": "^2.8.5",
     "discord.js": "^14.16.3",
     "dotenv": "^16.4.7",
