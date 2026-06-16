@@ -49,6 +49,10 @@ module.exports = {
       aioServiceMm: 8,
       coolerMarginMm: 4,
       slimFanMm: 15
+    },
+    status: {
+      searching: '<a:loading:1515171713174994994>  Searching the database…',
+      formatting: '<a:typing:1516013194777329725>  Synthesizing answer...'
     }
   },
 

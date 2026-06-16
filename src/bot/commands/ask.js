@@ -57,17 +57,13 @@ async function run (engine, bot, int) {
         if (!statusShown && toolCalls && toolCalls.length) {
           statusShown = true
           int
-            .editReply(
-              '<a:loading:1515171713174994994> Searching the database…'
-            )
+            .editReply(config.agent.status.searching)
             .catch(() => {})
         }
       },
       onFormatStart: () => {
         int
-          .editReply(
-            '<a:typing:1516013194777329725> Synthesizing answer...'
-          )
+          .editReply(config.agent.status.formatting)
           .catch(() => {})
       }
     })
