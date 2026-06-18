@@ -2,15 +2,24 @@
 
 const { analyzeGenerousGpuFit } = require('../src/engine/query')
 
+// Accept either structured tool calls [{toolName, input}] (preferred) or the
+// legacy summarizeSteps string form. query_components inputs become the parsed specs.
 function parseSpecs (tools) {
-  return tools.filter(t => t.startsWith('query_components')).map(t => {
-    const open = t.indexOf('(')
-    const close = t.lastIndexOf(')')
-    if (open === -1 || close === -1) return null
-    const inner = t.slice(open + 1, close)
-    if (inner.startsWith('"')) return null
-    try { return JSON.parse(inner) } catch { return null }
-  }).filter(Boolean)
+  return tools
+    .map(t => {
+      if (typeof t === 'string') {
+        if (!t.startsWith('query_components')) return null
+        const open = t.indexOf('(')
+        const close = t.lastIndexOf(')')
+        if (open === -1 || close === -1) return null
+        const inner = t.slice(open + 1, close)
+        if (inner.startsWith('"')) return null // DSML-corrupted, can't recover from string form
+        try { return JSON.parse(inner) } catch { return null }
+      }
+      if (t.toolName === 'query_components') return t.input
+      return null
+    })
+    .filter(Boolean)
 }
 
 const CHIP = /\d{4}/
@@ -67,12 +76,17 @@ function analyzeCoolerFit (specs, userRam = 35) {
   return flags
 }
 
-function analyzeRun (tools) {
+// Analyze a run. Accepts either:
+//   - structured tool calls [{toolName, input}] (preferred, from extractToolCalls)
+//   - legacy summarizeSteps strings (still works for the untracked probes)
+// `malformed` (DSML leakage) is detected from the string form only — the caller
+// passes it explicitly when it has the summarizeSteps strings available.
+function analyzeRun (tools, { malformed = false } = {}) {
   const specs = parseSpecs(tools)
   return {
     specs,
     queryCount: specs.length,
-    malformed: tools.some(t => t.includes('DSML')),
+    malformed,
     generous: analyzeGenerousGpuFit(specs),
     tight: analyzeTightGpuFit(specs),
     cooler: analyzeCoolerFit(specs)

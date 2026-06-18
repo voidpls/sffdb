@@ -2,6 +2,7 @@ const { test } = require('node:test')
 const assert = require('node:assert')
 const {
   summarizeSteps,
+  extractToolCalls,
   summarizeReasoning,
   needsFormatPass,
   formatStepIndex,
@@ -35,6 +36,21 @@ test('summarizeSteps flattens tool calls across steps', () => {
     'query_components({"category":"Cases"})'
   ])
   assert.deepStrictEqual(summarizeSteps(), [])
+})
+
+test('extractToolCalls returns structured calls preferring input over args', () => {
+  const steps = [
+    { toolCalls: [{ toolName: 'search_components', input: { query: '3080 ti' } }] },
+    { toolCalls: [{ toolName: 'query_components', input: { category: 'Cases', limit: 5 } }] },
+    {},
+    { toolCalls: [{ toolName: 'query_components', args: { category: 'Cases' } }] }
+  ]
+  assert.deepStrictEqual(extractToolCalls(steps), [
+    { toolName: 'search_components', input: { query: '3080 ti' } },
+    { toolName: 'query_components', input: { category: 'Cases', limit: 5 } },
+    { toolName: 'query_components', input: { category: 'Cases' } }
+  ])
+  assert.deepStrictEqual(extractToolCalls(), [])
 })
 
 test('summarizeReasoning reads reasoningText and reasoning parts', () => {

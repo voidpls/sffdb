@@ -26,6 +26,18 @@ function summarizeSteps (steps = []) {
   )
 }
 
+// Structured tool-call list for benches/analysis: [{toolName, input}] across all steps.
+// Reads the parsed input directly so callers never re-parse the summarizeSteps string form.
+function extractToolCalls (steps = []) {
+  const out = []
+  for (const step of steps) {
+    for (const call of step.toolCalls || []) {
+      out.push({ toolName: call.toolName, input: call.input ?? call.args ?? {} })
+    }
+  }
+  return out
+}
+
 // Pulls the model's reasoning text out of each step (debug logging only)
 function summarizeReasoning (steps = []) {
   return steps
@@ -191,7 +203,16 @@ function createAgent (engine, { thinking } = {}) {
       if (process.env.AGENT_BENCH !== '1') {
         console.info('[agent] request', log)
       }
-      return { answer, steps, researchMs, formatMs, totalMs: log.totalMs, thinking: thinkingType }
+      return {
+        answer,
+        steps,
+        researchMs,
+        formatMs,
+        totalMs: log.totalMs,
+        thinking: thinkingType,
+        researchTokens,
+        formatTokens
+      }
     } catch (err) {
       const cancelled = signal?.aborted || err.name === 'AbortError'
       console.error('[agent] request', {
@@ -229,6 +250,7 @@ module.exports = {
   createAgent,
   resolveThinkingType,
   summarizeSteps,
+  extractToolCalls,
   summarizeReasoning,
   needsFormatPass,
   formatStepIndex,

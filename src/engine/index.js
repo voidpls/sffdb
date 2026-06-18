@@ -28,12 +28,24 @@ class QueryEngine {
 
   async refresh () {
     const raw = await this.fetcher.fetch(this.tabs)
+    this.loadSnapshot(raw)
+    return this.searchEngine.items.length
+  }
+
+  // Load from a raw sheet snapshot ({tabName: [{header: value}, ...]}) instead of
+  // fetching Sheets. Used by the bench harness so all child processes share one fetch.
+  loadSnapshot (raw) {
     const items = this.buildIndex(raw)
     this.searchEngine.load(items)
     this.rebuildCatalog()
     this.lastRefresh = new Date()
     console.info(`[engine] Indexed ${items.length} components across ${this.searchEngine.getCategories().length} categories`)
     return items.length
+  }
+
+  // The raw sheet data backing the index, for snapshotting to a temp file.
+  snapshot () {
+    return this.fetcher.lastRaw
   }
 
   // Flattens all sheets into one array, enriches rows with category + INDEX field

@@ -10,6 +10,7 @@ class SheetsFetcher {
         scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly']
       })
     })
+    this.lastRaw = null
   }
 
   // Fetch all tabs in one API call, returns { tabName: [{col: val, ...}, ...] }
@@ -44,6 +45,7 @@ class SheetsFetcher {
     const totalRows = Object.values(data).reduce((sum, arr) => sum + arr.length, 0)
     console.info(`[sheets] Fetched ${tabNames.length} tabs (${totalRows} rows) in ${elapsed}ms`)
 
+    this.lastRaw = data
     return data
   }
 }
