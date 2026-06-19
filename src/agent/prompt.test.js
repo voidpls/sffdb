@@ -20,7 +20,7 @@ test('research prompt has tools, catalog defaults, and fit recipe', () => {
   assert.doesNotMatch(prompt, /\{SFX, ATX\}/)
   assert.match(prompt, /also queryable: "Boost Clock \(MHz\)"/)
   assert.doesNotMatch(prompt, /Answer style/i)
-  assert.match(prompt, /never change only sort\/limit to page/)
+  assert.match(prompt, /never re-run with only sort changed to page/)
   assert.match(prompt, /100\+ variants/)
   assert.match(prompt, /Never query Model contains/)
   assert.match(prompt, /Query policy/)

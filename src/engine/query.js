@@ -75,32 +75,52 @@ function slimComponent (row, aliasesByCategory = {}, defaultSelectByCategory = {
   return { category, ...projectRow(row, select, aliasMap, row) }
 }
 
-function buildQueryHint (total, returned, truncated, fitQuery = false) {
-  if (truncated) {
-    const scale = total >= 100 ? `${total} matches (100+ variants)` : `${total} matches`
-    return `${scale} (${returned} returned) — never browse or paginate. Use fit recipe: tight case → all lte limits in one where; generous case → three gt exception queries (length, width, thickness).`
+function buildQueryHints ({ total, returned, truncated }) {
+  if (!truncated) return {}
+  const scale = total >= 100 ? `${total} matches (100+ variants)` : `${total} matches`
+  return {
+    hintCode: 'truncated',
+    hint: `${scale} (${returned} shown) — partial. Do not re-run with only sort changed (pagination). If sorted, the answer may already be on this page.`
   }
-  if (total === 0 && fitQuery) {
-    return 'Zero matches — answer does not fit; do not probe further.'
-  }
-  return undefined
 }
 
-function isFitQuery (category, where, aliasMap, sample) {
-  if (!where?.length) return false
-  if (category === 'Graphics Cards') {
-    return where.some(cond => {
-      const header = resolveField(cond.field, aliasMap, sample) || cond.field
-      return GPU_DIM_FIELDS.test(header)
-    })
+const GENEROUS_COMPLETE_HINT = {
+  hintCode: 'generous_complete',
+  hint: 'Exception audit complete — cards not listed in any exception query fit. Do not browse or search by brand.'
+}
+
+function generousExceptionAxis (spec, aliasMap, sample) {
+  if (spec?.category !== 'Graphics Cards' || !spec.where?.length || !sample) return null
+  let chipFamily = false
+  let gtAxis = null
+  for (const cond of spec.where) {
+    const field = String(cond.field ?? '').trim()
+    const header = resolveField(cond.field, aliasMap, sample) || field
+    if (cond.op === 'lte' && GPU_DIM_FIELDS.test(header)) return null
+    if (cond.op === 'contains' && GPU_CHIP_FIELDS.test(field) && CHIP_FAMILY.test(String(cond.value ?? ''))) {
+      chipFamily = true
+    }
+    if (cond.op !== 'gt') continue
+    if (GPU_LENGTH_FIELD.test(header)) gtAxis = 'length'
+    else if (GPU_WIDTH_FIELD.test(header)) gtAxis = 'width'
+    else if (GPU_THICKNESS_FIELD.test(header)) gtAxis = 'thickness'
   }
-  if (category === 'Coolers (Air)') {
-    return where.some(cond => {
-      const header = resolveField(cond.field, aliasMap, sample) || cond.field
-      return /^height \(mm\)$/i.test(header)
-    })
+  return chipFamily && gtAxis ? gtAxis : null
+}
+
+function createGenerousCompleteTracker () {
+  const axes = new Set()
+  return {
+    afterQuery (spec, result, { aliases = {}, getSample } = {}) {
+      if (result.error || result.truncated) return null
+      const sample = getSample?.(spec.category)
+      const aliasMap = aliases[spec.category] || {}
+      const axis = generousExceptionAxis(spec, aliasMap, sample)
+      if (!axis || axes.has(axis)) return null
+      axes.add(axis)
+      return axes.size >= 3 ? GENEROUS_COMPLETE_HINT : null
+    }
   }
-  return false
 }
 
 const GPU_CHIP_FIELDS = /^model$|^name$|^gpu$/i
@@ -175,8 +195,9 @@ function queryComponents (items, spec = {}, opts = {}) {
 
   if (rejectBareChipBrowse && isBareChipBrowse(category, where, aliasMap, sample)) {
     return {
-      error: 'Chip-family browse rejected (100+ variants). Include case GPU Length/Width/Thickness limits in the same where.',
-      rejected: 'bare_chip_browse'
+      error: 'Chip-family browse rejected — too many variants without constraints.',
+      rejected: 'bare_chip_browse',
+      hint: 'For GPU-in-case fit: add case GPU Length/Width/Thickness limits in the same where. For a named card or reference dimensions: use search_components on a specific SKU instead.'
     }
   }
 
@@ -203,8 +224,13 @@ function queryComponents (items, spec = {}, opts = {}) {
   const results = rows.slice(0, cap).map(row => projectRow(row, effectiveSelect, aliasMap, sample))
   const truncated = total > results.length
   const out = { count: total, returned: results.length, truncated, results }
-  const hint = buildQueryHint(total, results.length, truncated, isFitQuery(category, where, aliasMap, sample))
+  const { hint, hintCode } = buildQueryHints({
+    total,
+    returned: results.length,
+    truncated
+  })
   if (hint) out.hint = hint
+  if (hintCode) out.hintCode = hintCode
   return out
 }
 
@@ -217,6 +243,8 @@ module.exports = {
   buildEffectiveSelect,
   projectRow,
   slimComponent,
-  buildQueryHint,
-  isFitQuery
+  buildQueryHints,
+  generousExceptionAxis,
+  createGenerousCompleteTracker,
+  GENEROUS_COMPLETE_HINT
 }

@@ -117,13 +117,13 @@ function resolveThinkingType (override) {
 
 function createAgent (engine, { thinking } = {}) {
   const deepseek = createDeepSeek({ apiKey: process.env.DEEPSEEK_API_KEY })
-  const tools = buildTools(engine)
   const thinkingType = resolveThinkingType(thinking)
   const providerOptions = {
     deepseek: { thinking: { type: thinkingType } }
   }
 
   return async function runAgent (question, { onStepFinish, onFormatStart, signal } = {}) {
+    const tools = buildTools(engine)
     const start = Date.now()
     const system = buildResearchPrompt(engine.getCatalog())
     const formatNudge = buildFormatNudge(config.agent.margins)

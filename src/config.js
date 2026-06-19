@@ -10,6 +10,7 @@ module.exports = {
     model: 'deepseek-v4-flash',
     thinking: true,
     maxSteps: 10,
+    maxToolCalls: 10,
     cooldownMs: 30_000,
     logReasoning: process.env.AGENT_DEBUG === 'true',
     maxResults: 30,

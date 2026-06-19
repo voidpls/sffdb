@@ -1,7 +1,7 @@
 const { test } = require('node:test')
 const assert = require('node:assert')
 const config = require('../config')
-const { queryComponents, analyzeGenerousGpuFit, buildQueryHint, isFitQuery } = require('./query')
+const { queryComponents, analyzeGenerousGpuFit, buildQueryHints, createGenerousCompleteTracker, generousExceptionAxis } = require('./query')
 
 const items = [
   { category: 'Cases', Seller: 'Velka', Case: '5', 'Volume (L)': '3.9', 'GPU Length (mm)': '?', 'CPU Cooler Height (mm)': '48', PSU: 'Flex', INDEX: 'Velka 5' },
@@ -40,15 +40,18 @@ test('limit is clamped to maxResults, flags truncation, and adds hint', () => {
   assert.strictEqual(truncated.results.length, 2)
   assert.strictEqual(truncated.count, 3)
   assert.strictEqual(truncated.truncated, true)
-  assert.match(truncated.hint, /never browse or paginate/i)
+  assert.match(truncated.hint, /partial/)
+  assert.match(truncated.hint, /pagination/)
   assert.match(truncated.hint, /3 matches/)
+  assert.strictEqual(truncated.hintCode, 'truncated')
+  assert.doesNotMatch(truncated.hint, /fit recipe|three gt exception/i)
 
   const complete = queryComponents(items, { category: 'Cases' }, { aliases, maxResults: 50 })
   assert.strictEqual(complete.truncated, false)
   assert.strictEqual(complete.hint, undefined)
 })
 
-test('zero-result GPU fit query adds stop-probing hint', () => {
+test('zero-result queries have no hint', () => {
   const gpuItems = [
     { category: 'Graphics Cards', Brand: 'Nvidia', Model: 'RTX 4090', Name: 'FE', 'Length (mm)': '304', 'Width (mm)': '137', 'Thickness (mm)': '40', Watercooled: 'Y', INDEX: '4090 fe' }
   ]
@@ -62,30 +65,19 @@ test('zero-result GPU fit query adds stop-probing hint', () => {
     ]
   }, opts)
   assert.strictEqual(res.count, 0)
-  assert.strictEqual(res.truncated, false)
-  assert.match(res.hint, /Zero matches/)
-  assert.match(res.hint, /do not probe further/)
-})
+  assert.strictEqual(res.hint, undefined)
 
-test('zero-result non-fit query has no hint', () => {
-  const res = queryComponents(items, {
+  const none = queryComponents(items, {
     category: 'Cases',
     where: [{ field: 'Case', op: 'eq', value: 'NonexistentCaseXYZ' }]
   }, opts)
-  assert.strictEqual(res.count, 0)
-  assert.strictEqual(res.hint, undefined)
+  assert.strictEqual(none.count, 0)
+  assert.strictEqual(none.hint, undefined)
 })
 
-test('buildQueryHint zero branch only for fit queries', () => {
-  assert.match(buildQueryHint(0, 0, false, true), /Zero matches/)
-  assert.strictEqual(buildQueryHint(0, 0, false, false), undefined)
-})
-
-test('isFitQuery detects GPU and cooler fit queries', () => {
-  const sample = { 'Length (mm)': '300', 'Height (mm)': '50' }
-  assert.strictEqual(isFitQuery('Graphics Cards', [{ field: 'Length (mm)', op: 'lte', value: 300 }], {}, sample), true)
-  assert.strictEqual(isFitQuery('Graphics Cards', [{ field: 'Model', op: 'contains', value: '4090' }], {}, sample), false)
-  assert.strictEqual(isFitQuery('Coolers (Air)', [{ field: 'Height (mm)', op: 'lte', value: 70 }], {}, sample), true)
+test('buildQueryHints only on truncated', () => {
+  assert.strictEqual(buildQueryHints({ total: 3, returned: 2, truncated: false }).hint, undefined)
+  assert.match(buildQueryHints({ total: 3, returned: 2, truncated: true }).hint, /partial/)
 })
 
 test('default select omits non-default fields', () => {
@@ -113,6 +105,7 @@ test('rejects bare chip-family browse on Graphics Cards when enabled', () => {
   }, rejectOpts)
   assert.strictEqual(bare.rejected, 'bare_chip_browse')
   assert.ok(bare.error)
+  assert.match(bare.hint, /search_components/)
 
   const fit = queryComponents(gpuItems, {
     category: 'Graphics Cards',
@@ -145,11 +138,6 @@ test('bare chip browse allowed when reject is disabled', () => {
   }, { ...opts, rejectBareChipBrowse: false })
   assert.strictEqual(res.count, 2)
   assert.strictEqual(res.rejected, undefined)
-})
-
-test('truncation hint mentions generous width and thickness exception queries', () => {
-  const res = queryComponents(items, { category: 'Cases', limit: 99 }, { aliases, maxResults: 2 })
-  assert.match(res.hint, /three gt exception queries \(length, width, thickness\)/)
 })
 
 test('generous GPU fit width exception query finds too-wide cards', () => {
@@ -215,6 +203,41 @@ test('analyzeGenerousGpuFit detects complete three-axis exception passes', () =>
   assert.strictEqual(incomplete.complete, false)
   assert.strictEqual(incomplete.lengthGt, true)
   assert.strictEqual(incomplete.widthGt, false)
+})
+
+test('generousExceptionAxis detects single gt exception queries', () => {
+  const sample = { Model: 'RTX 4090', 'Length (mm)': '300', 'Width (mm)': '150', 'Thickness (mm)': '60' }
+  assert.strictEqual(generousExceptionAxis({
+    category: 'Graphics Cards',
+    where: [
+      { field: 'Model', op: 'contains', value: '4090' },
+      { field: 'Length (mm)', op: 'gt', value: 360 }
+    ]
+  }, {}, sample), 'length')
+  assert.strictEqual(generousExceptionAxis({
+    category: 'Graphics Cards',
+    where: [
+      { field: 'Model', op: 'contains', value: '4090' },
+      { field: 'Length (mm)', op: 'lte', value: 360 }
+    ]
+  }, {}, sample), null)
+})
+
+test('createGenerousCompleteTracker fires after three complete exception axes', () => {
+  const sample = { Model: 'RTX 4090', 'Length (mm)': '300' }
+  const getSample = () => sample
+  const tracker = createGenerousCompleteTracker()
+  const spec = (field, value) => ({
+    category: 'Graphics Cards',
+    where: [
+      { field: 'Model', op: 'contains', value: '4090' },
+      { field, op: 'gt', value }
+    ]
+  })
+  assert.strictEqual(tracker.afterQuery(spec('Length (mm)', 360), { count: 2, truncated: false }, { getSample }), null)
+  assert.strictEqual(tracker.afterQuery(spec('Width (mm)', 175), { count: 0, truncated: false }, { getSample }), null)
+  const done = tracker.afterQuery(spec('Thickness (mm)', 80), { count: 1, truncated: false }, { getSample })
+  assert.strictEqual(done.hintCode, 'generous_complete')
 })
 
 test('select projects only requested fields (resolving aliases)', () => {
