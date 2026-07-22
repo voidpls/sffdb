@@ -2,6 +2,8 @@
 
 Discord bot and HTTP API for querying the [SFF PC Masterlist](https://bit.ly/30BJn2S).
 
+**Stack:** Node.js · discord.js · googleapis · fuzzysort · Vercel AI SDK
+
 ## Architecture
 
 ```
