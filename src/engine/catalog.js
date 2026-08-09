@@ -40,17 +40,13 @@ function buildCatalog (items, aliasesByCat = {}, defaultSelectByCategory = {}) {
     catalog[category] = headers.map(header => {
       const values = rows.map(r => r[header])
       const type = inferType(values)
-      const field = {
+      return {
         header,
         alias: headerToAlias[header] || null,
         unit: parseUnit(header),
         type,
         default: defaultHeaders.has(header)
       }
-      if (type === 'enum') {
-        field.values = [...new Set(values.map(v => String(v ?? '').trim()).filter(v => !SENTINELS.has(v)))].slice(0, 12)
-      }
-      return field
     })
   }
   return catalog

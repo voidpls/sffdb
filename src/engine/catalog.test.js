@@ -25,7 +25,6 @@ test('excludes internal fields and infers types', () => {
 
   const psu = cat.Cases.find(f => f.header === 'PSU')
   assert.strictEqual(psu.type, 'enum')
-  assert.deepStrictEqual(psu.values.sort(), ['ATX', 'Flex', 'SFX'])
 })
 
 test('does not treat letter-led text as numeric', () => {
