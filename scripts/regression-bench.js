@@ -6,7 +6,7 @@ require('dotenv').config()
 const { spawn } = require('node:child_process')
 const { writeFileSync, mkdirSync, rmSync } = require('node:fs')
 const { join } = require('node:path')
-const { analyzeRun } = require('./bench-lib')
+const { resolveProvider, apiKeyEnv } = require('../src/agent/model')
 
 const CASES = [
   {
@@ -14,42 +14,66 @@ const CASES = [
     p0: 'P0-1',
     text: 'which 4090s fit in the Ncase M3?',
     minPassRate: 1,
-    check: r => r.generous?.complete === true
+    check: r => r.generous?.complete === true && r.answerOk === true,
+    answer: { kind: 'generous_gpu', chip: '4090' }
   },
   {
     id: 'p0-1-gpu-generous-raws1',
     p0: 'P0-1',
     text: '7900 XTX cards that fit in a Louqe Raw S1',
     minPassRate: 1,
-    check: r => r.generous?.complete === true
+    check: r => r.generous?.complete === true && r.answerOk === true,
+    answer: { kind: 'generous_gpu', chip: '7900' }
   },
   {
     id: 'p0-3-cooler-ram-ridge',
     p0: 'P0-3',
     text: 'what air coolers fit in a Fractal Ridge with 35mm tall RAM?',
     minPassRate: 1,
-    check: r => r.cooler?.complete === true && r.cooler?.heightOnly !== true
+    check: r => r.cooler?.complete === true && r.cooler?.heightOnly !== true && r.answerOk === true,
+    answer: { kind: 'cooler_ram' }
   },
   {
     id: 'gpu-tight-ghost5080',
     p0: 'control',
     text: '5080s that fit in ghost s1',
     minPassRate: 0.67,
-    check: r => r.tight?.combinedLte === true
+    check: r => r.tight?.combinedLte === true && r.answerOk === true,
+    answer: { kind: 'tight_gpu', chip: '5080' }
   },
   {
     id: 'case-browse-10l-330gpu',
     p0: 'control',
     text: 'smallest case under 10L that fits a 330mm GPU?',
     minPassRate: 1,
-    check: r => r.queryCount >= 1 && r.malformed !== true
+    check: r => r.queryCount >= 1 && r.malformed !== true && r.answerOk === true,
+    answer: { kind: 'fit_list', category: 'Cases' }
   },
   {
     id: 'gpu-filter-1080ti',
     p0: 'control',
     text: 'GTX 1080 Ti models under 270mm long',
     minPassRate: 1,
-    check: r => r.queryCount >= 1 && r.malformed !== true
+    check: r => r.queryCount >= 1 && r.malformed !== true && r.answerOk === true,
+    answer: { kind: 'fit_list', chip: '1080', category: 'Graphics Cards' }
+  },
+  {
+    id: 'bare-chip-browse-4090',
+    p0: 'control',
+    text: 'list all 4090 graphics cards',
+    minPassRate: 1,
+    // A bare chip query at all is a prompt violation (and server-rejected) — no recovery credit.
+    // Pass = never issued one AND (queried with constraints OR declined with constraint language).
+    check: r => r.bareChip === 0 && (r.queryCount >= 1 || r.answerOk === true),
+    answer: { kind: 'decline', anyOf: ['too many', 'specify', 'specific', 'narrow', 'constrain', 'limit', 'case', 'dimensions', 'reference', 'open-ended'] }
+  },
+  {
+    id: 'perf-rank-decline',
+    p0: 'control',
+    text: 'rank the best 4090 for gaming',
+    minPassRate: 1,
+    check: r => r.queryCount <= 2 && r.answerOk === true,
+    answer: { kind: 'decline', anyOf: ['benchmark', 'rank', 'performance'] }
   }
 ]
 
@@ -60,13 +84,14 @@ const { readFileSync } = require('node:fs')
 require('dotenv').config({ path: ${JSON.stringify(join(process.cwd(), '.env'))} })
 const QueryEngine = require(${JSON.stringify(join(process.cwd(), 'src/engine/index'))})
 const { createAgent, summarizeSteps, extractToolCalls } = require(${JSON.stringify(join(process.cwd(), 'src/agent/index'))})
-const { analyzeRun } = require(${JSON.stringify(benchLib)})
+const { analyzeRun, verifyAnswer, bareChipQueries } = require(${JSON.stringify(benchLib)})
 
 ;(async () => {
   const id = process.env.BENCH_ID
   const question = process.env.BENCH_QUESTION
   const run = Number(process.env.BENCH_RUN)
   const snapshotPath = process.env.BENCH_SNAPSHOT
+  const answerDef = process.env.BENCH_ANSWER ? JSON.parse(process.env.BENCH_ANSWER) : null
   const engine = new QueryEngine()
   if (snapshotPath) {
     engine.loadSnapshot(JSON.parse(readFileSync(snapshotPath, 'utf8')))
@@ -77,10 +102,16 @@ const { analyzeRun } = require(${JSON.stringify(benchLib)})
   const toolCalls = extractToolCalls(steps)
   const toolStrings = summarizeSteps(steps) // kept for DSML detection + log parity
   const metrics = analyzeRun(toolCalls, { malformed: toolStrings.some(t => t.includes('DSML')) })
+  const answerCheck = answerDef ? verifyAnswer(answerDef, { answer, specs: metrics.specs, engine }) : null
+  const bareChip = bareChipQueries(metrics.specs, engine)
   console.log(JSON.stringify({
     id, question, run, ok: true, totalMs, researchMs,
     tools: toolStrings, toolCalls,
     answerLen: (answer || '').length,
+    answerSnippet: (answer || '').slice(0, 200),
+    answerOk: answerCheck ? answerCheck.ok : null,
+    answerReasons: answerCheck ? answerCheck.reasons : [],
+    bareChip,
     researchTokens, formatTokens,
     ...metrics
   }))
@@ -94,14 +125,15 @@ const { analyzeRun } = require(${JSON.stringify(benchLib)})
 `
 }
 
-function runOne ({ id, text }, run, snapshotPath) {
+function runOne ({ id, text, answer }, run, snapshotPath) {
   return new Promise((resolve, reject) => {
     const env = {
       ...process.env,
       AGENT_BENCH: '1',
       BENCH_ID: id,
       BENCH_QUESTION: text,
-      BENCH_RUN: String(run)
+      BENCH_RUN: String(run),
+      BENCH_ANSWER: JSON.stringify(answer || null)
     }
     if (snapshotPath) env.BENCH_SNAPSHOT = snapshotPath
     const child = spawn(process.execPath, ['-e', workerScript()], {
@@ -121,11 +153,16 @@ function runOne ({ id, text }, run, snapshotPath) {
   })
 }
 
-// DeepSeek V4-Flash pricing per 1M tokens (input cache-miss / cached / output)
-const PRICING = { miss: 0.14, cache: 0.003, out: 0.28 }
+// Pricing per 1M tokens (input cache-miss / cached / output), keyed by provider.
+// deepseek: V4-Flash rates. xai: grok-4.5 (<200k prompt tokens). meta: muse-spark-1.2-contributor.
+const PRICING = {
+  deepseek: { miss: 0.14, cache: 0.003, out: 0.28 },
+  xai: { miss: 2.0, cache: 0.3, out: 6.0 },
+  meta: { miss: 0.1, cache: 0.002, out: 0.2 }
+}
 
 function sumTokens (rows) {
-  // Aggregate across research + format passes for a rollup of total token use per run.
+  // Roll up research + format tokens for one run.
   const tot = { miss: 0, cache: 0, out: 0 }
   for (const r of rows) {
     for (const t of [r.researchTokens, r.formatTokens]) {
@@ -138,14 +175,15 @@ function sumTokens (rows) {
   return tot
 }
 
-function costMills (t) {
-  return Math.round((t.miss * PRICING.miss + t.cache * PRICING.cache + t.out * PRICING.out) / 10) / 100
+function costMills (t, pricing) {
+  return Math.round((t.miss * pricing.miss + t.cache * pricing.cache + t.out * pricing.out) / 10) / 100
 }
 
-function summarizeCase (c, rows) {
+function summarizeCase (c, rows, pricing) {
   const passed = rows.filter(r => r.ok !== false && c.check(r)).length
   const passRate = rows.length ? passed / rows.length : 0
   const tok = sumTokens(rows)
+  const ms = rows.map(r => r.totalMs || 0).sort((a, b) => a - b)
   return {
     id: c.id,
     p0: c.p0,
@@ -156,12 +194,15 @@ function summarizeCase (c, rows) {
     minPassRate: c.minPassRate,
     ok: passRate >= c.minPassRate,
     avgMs: rows.length ? Math.round(rows.reduce((s, r) => s + (r.totalMs || 0), 0) / rows.length) : 0,
+    medianMs: ms.length ? ms[Math.floor((ms.length - 1) / 2)] : 0,
+    p90Ms: ms.length ? ms[Math.min(ms.length - 1, Math.floor(ms.length * 0.9))] : 0,
     avgQueries: rows.length ? Number((rows.reduce((s, r) => s + (r.queryCount || 0), 0) / rows.length).toFixed(1)) : 0,
     avgTokIn: rows.length ? Math.round(tok.miss / rows.length) : 0,
     avgTokCache: rows.length ? Math.round(tok.cache / rows.length) : 0,
     avgTokOut: rows.length ? Math.round(tok.out / rows.length) : 0,
-    costMillsPerRun: rows.length ? costMills(tok) / rows.length : 0,
+    costMillsPerRun: rows.length ? costMills(tok, pricing) / rows.length : 0,
     malformed: rows.filter(r => r.malformed).length,
+    answerFails: rows.filter(r => r.answerOk === false).length,
     errors: rows.filter(r => r.ok === false).length
   }
 }
@@ -169,11 +210,15 @@ function summarizeCase (c, rows) {
 async function main () {
   const runs = Number(process.argv.find((a, i) => process.argv[i - 1] === '--runs') || 3)
   const serial = process.argv.includes('--serial')
+  const parallel = Number(process.argv.find((a, i) => process.argv[i - 1] === '--parallel') || 0)
   const noSnapshot = process.argv.includes('--no-snapshot')
-  if (!process.env.DEEPSEEK_API_KEY) {
-    console.error('DEEPSEEK_API_KEY required')
+  const provider = resolveProvider()
+  const keyEnv = apiKeyEnv()
+  if (!process.env[keyEnv]) {
+    console.error(`${keyEnv} required for provider '${provider}'`)
     process.exit(1)
   }
+  const pricing = PRICING[provider] || PRICING.deepseek
 
   // One Sheets fetch for the whole session; each child loads it from disk.
   let snapshotPath = null
@@ -196,7 +241,7 @@ async function main () {
     for (let run = 1; run <= runs; run++) jobs.push({ c, run })
   }
 
-  console.error(`[regression] ${jobs.length} jobs (${CASES.length} cases × ${runs} runs)${serial ? ' serial' : ' parallel'}${noSnapshot ? ' no-snapshot' : ''}`)
+  console.error(`[regression] ${jobs.length} jobs (${CASES.length} cases × ${runs} runs)${serial ? ' serial' : parallel > 0 ? ` ${parallel} parallel` : ' parallel'}${noSnapshot ? ' no-snapshot' : ''}`)
 
   let results
   try {
@@ -207,6 +252,21 @@ async function main () {
         results.push(r)
         process.stderr.write(`[regression] ${results.length}/${jobs.length} ${j.c.id} run ${j.run}\n`)
       }
+    } else if (parallel > 0) {
+      // Bounded pool — rate-limit friendly (meta contributor tier is 100 RPM)
+      results = []
+      let done = 0
+      let next = 0
+      const workers = Array.from({ length: parallel }, async () => {
+        while (next < jobs.length) {
+          const j = jobs[next++]
+          const r = await runOne(j.c, j.run, snapshotPath)
+          results.push(r)
+          done++
+          process.stderr.write(`[regression] ${done}/${jobs.length} ${j.c.id} run ${j.run}\n`)
+        }
+      })
+      await Promise.all(workers)
     } else {
       let done = 0
       results = await Promise.all(jobs.map(j =>
@@ -223,7 +283,7 @@ async function main () {
     }
   }
 
-  const summary = CASES.map(c => summarizeCase(c, results.filter(r => r.id === c.id)))
+  const summary = CASES.map(c => summarizeCase(c, results.filter(r => r.id === c.id), pricing))
   const failed = summary.filter(s => !s.ok)
 
   const outDir = join(process.cwd(), 'scripts/bench-results')
@@ -236,7 +296,7 @@ async function main () {
   for (const s of summary) {
     const mark = s.ok ? 'PASS' : 'FAIL'
     console.log(`[${mark}] ${s.id} (${s.p0})`)
-    console.log(`  ${s.passed}/${s.runs} checks | ${s.avgQueries}q | ${s.avgMs}ms | dsml ${s.malformed}/${s.runs}`)
+    console.log(`  ${s.passed}/${s.runs} checks | ${s.avgQueries}q | ${s.avgMs}ms (p50 ${s.medianMs} / p90 ${s.p90Ms}) | dsml ${s.malformed}/${s.runs}${s.answerFails ? ` | answer ✗ ${s.answerFails}/${s.runs}` : ''}`)
     console.log(`  tok/run: ${s.avgTokIn} in + ${s.avgTokCache} cache + ${s.avgTokOut} out | ${(s.costMillsPerRun / 1000).toFixed(4)}/run`)
   }
   const totalRuns = summary.reduce((n, s) => n + s.runs, 0)

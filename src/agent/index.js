@@ -1,5 +1,5 @@
 const { generateText, stepCountIs } = require('ai')
-const { createDeepSeek } = require('@ai-sdk/deepseek')
+const { createModel } = require('./model')
 const { buildTools } = require('./tools')
 const { buildResearchPrompt, buildFormatNudge } = require('./prompt')
 const config = require('../config')
@@ -26,8 +26,7 @@ function summarizeSteps (steps = []) {
   )
 }
 
-// Structured tool-call list for benches/analysis: [{toolName, input}] across all steps.
-// Reads the parsed input directly so callers never re-parse the summarizeSteps string form.
+// Flat tool-call list for benches/analysis, so callers never re-parse the string form.
 function extractToolCalls (steps = []) {
   const out = []
   for (const step of steps) {
@@ -62,6 +61,24 @@ function tokenUsage (result) {
     }
   }
 
+  // AI SDK v7 normalized shape: counts split into inputTokenDetails
+  if (usage?.inputTokenDetails) {
+    return {
+      uncachedInput: usage.inputTokenDetails.noCacheTokens ?? 0,
+      cachedInput: usage.inputTokenDetails.cacheReadTokens ?? 0,
+      output: usage.outputTokens?.total ?? usage.outputTokens ?? 0
+    }
+  }
+
+  // Flat counts (xAI etc.): no cache breakdown available, count all input as uncached
+  if (typeof usage?.inputTokens === 'number') {
+    return {
+      uncachedInput: usage.inputTokens,
+      cachedInput: 0,
+      output: usage?.outputTokens?.total ?? usage?.outputTokens ?? 0
+    }
+  }
+
   const ds = result.providerMetadata?.deepseek
   if (ds?.promptCacheHitTokens == null && ds?.promptCacheMissTokens == null) return null
 
@@ -88,7 +105,7 @@ function accumulateStepTokens (steps, formatFromIndex) {
     } else {
       research.uncachedInput += usage.uncachedInput
       research.output += usage.output
-      research.cachedInput = usage.cachedInput
+      research.cachedInput += usage.cachedInput
     }
   }
 
@@ -116,18 +133,14 @@ function resolveThinkingType (override) {
 }
 
 function createAgent (engine, { thinking } = {}) {
-  const deepseek = createDeepSeek({ apiKey: process.env.DEEPSEEK_API_KEY })
   const thinkingType = resolveThinkingType(thinking)
-  const providerOptions = {
-    deepseek: { thinking: { type: thinkingType } }
-  }
+  const { model, providerOptions, toolChoiceNone } = createModel({ thinking: thinkingType })
 
   return async function runAgent (question, { onStepFinish, onFormatStart, signal } = {}) {
     const tools = buildTools(engine)
     const start = Date.now()
     const system = buildResearchPrompt(engine.getCatalog())
     const formatNudge = buildFormatNudge(config.agent.margins)
-    const model = deepseek(config.agent.model)
     let researchMs = 0
     let formatMs = 0
     let stepStart = Date.now()
@@ -154,7 +167,7 @@ function createAgent (engine, { thinking } = {}) {
           onFormatStart?.()
           return {
             messages: [...messages, { role: 'user', content: formatNudge }],
-            toolChoice: 'none',
+            ...(toolChoiceNone ? { toolChoice: 'none' } : {}),
             providerOptions
           }
         },
@@ -175,11 +188,10 @@ function createAgent (engine, { thinking } = {}) {
             ...result.response.messages,
             { role: 'user', content: formatNudge }
           ],
-          tools,
+          ...(toolChoiceNone ? { tools, toolChoice: 'none' } : { tools }),
           providerOptions,
           abortSignal: signal,
-          stopWhen: stepCountIs(1),
-          toolChoice: 'none'
+          stopWhen: stepCountIs(1)
         })
         formatMs += Date.now() - formatStart
         formatFromIndex = steps.length

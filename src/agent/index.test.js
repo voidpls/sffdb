@@ -84,28 +84,40 @@ test('formatStepIndex detects prepareStep format step', () => {
 })
 
 test('tokenUsage reports uncached/cached input and output tokens', () => {
-  assert.deepStrictEqual(tokenUsage({
+  const objectShape = tokenUsage({
+    usage: { inputTokens: { noCache: 100, cacheRead: 200 }, outputTokens: { total: 10 } }
+  })
+  assert.deepStrictEqual(objectShape, { uncachedInput: 100, cachedInput: 200, output: 10 })
+
+  // AI SDK v7 normalized shape (xai/deepseek)
+  const v7Shape = tokenUsage({
     usage: {
-      inputTokens: { noCache: 419, cacheRead: 10240 },
-      outputTokens: { total: 892 }
+      inputTokens: 300,
+      inputTokenDetails: { noCacheTokens: 40, cacheReadTokens: 260 },
+      outputTokens: 15
     }
-  }), { uncachedInput: 419, cachedInput: 10240, output: 892 })
+  })
+  assert.deepStrictEqual(v7Shape, { uncachedInput: 40, cachedInput: 260, output: 15 })
 
-  assert.deepStrictEqual(tokenUsage({
+  const flat = tokenUsage({ usage: { inputTokens: 500, outputTokens: 20 } })
+  assert.deepStrictEqual(flat, { uncachedInput: 500, cachedInput: 0, output: 20 })
+
+  const dsMetadata = tokenUsage({
     providerMetadata: { deepseek: { promptCacheHitTokens: 100, promptCacheMissTokens: 5 } }
-  }), { uncachedInput: 5, cachedInput: 100, output: 0 })
-
-  assert.strictEqual(tokenUsage({}), null)
+  })
+  assert.deepStrictEqual(dsMetadata, { uncachedInput: 5, cachedInput: 100, output: 0 })
 })
 
 test('accumulateStepTokens splits research and format steps', () => {
   const steps = [
     { usage: { inputTokens: { noCache: 100, cacheRead: 200 }, outputTokens: { total: 10 } } },
-    { usage: { inputTokens: { noCache: 50, cacheRead: 300 }, outputTokens: { total: 5 } } }
+    { usage: { inputTokens: { noCache: 50, cacheRead: 300 }, outputTokens: { total: 5 } } },
+    { usage: { inputTokens: { noCache: 25, cacheRead: 400 }, outputTokens: { total: 2 } } }
   ]
-  const { researchTokens, formatTokens } = accumulateStepTokens(steps, 1)
-  assert.deepStrictEqual(researchTokens, { uncachedInput: 100, cachedInput: 200, output: 10 })
-  assert.deepStrictEqual(formatTokens, { uncachedInput: 50, cachedInput: 300, output: 5 })
+  const { researchTokens, formatTokens } = accumulateStepTokens(steps, 2)
+  // cacheRead must accumulate across both research steps, not just the last
+  assert.deepStrictEqual(researchTokens, { uncachedInput: 150, cachedInput: 500, output: 15 })
+  assert.deepStrictEqual(formatTokens, { uncachedInput: 25, cachedInput: 400, output: 2 })
 })
 
 test('sanitizeAnswer replaces emoji ticks and crosses', () => {

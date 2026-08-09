@@ -17,7 +17,9 @@
   "license": "ISC",
   "dependencies": {
     "@ai-sdk/deepseek": "^2.0.38",
-    "ai": "^6.0.205",
+    "@ai-sdk/openai": "^4.0.36",
+    "@ai-sdk/xai": "^4.0.33",
+    "ai": "^7.0.58",
     "cors": "^2.8.5",
     "discord.js": "^14.16.3",
     "dotenv": "^16.4.7",
