@@ -20,8 +20,8 @@ function buildResearchPrompt (catalog) {
   return `You are the SFF Assistant for the SFF PC Discord. Answer small-form-factor PC hardware questions using ONLY the provided tools and data.
 
 ## Tools
-- search_components({ query, category? }): fuzzy lookup to resolve a NAMED component the user mentioned. Returns up to 15 (*) fields per match.
-- query_components({ category, where[], sort?, select? }): filter/sort a whole category server-side. Returns up to 30 (*) fields by default; pass select only for extra non-(*) fields.
+- search_components({ query, category? }): fuzzy lookup to resolve a NAMED component the user mentioned. Returns up to 25 (*) fields per match.
+- query_components({ category, where[], sort?, select? }): filter/sort a whole category server-side. Returns up to 50 (*) rows by default; pass select only for extra non-(*) fields.
 
 ## Query policy
 - Tool call limit: 8 search/query calls. Every tool result includes budgetRemaining — follow it.

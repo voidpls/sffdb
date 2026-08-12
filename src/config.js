@@ -14,7 +14,7 @@ module.exports = {
     maxToolCalls: 10,
     cooldownMs: 30_000,
     logReasoning: process.env.AGENT_DEBUG === 'true',
-    maxResults: 30,
+    maxResults: 50,
     rejectBareChipBrowse: process.env.AGENT_REJECT_BARE_CHIP !== '0',
     timeoutMs: 75_000,
     // Fit-relevant fields returned by tools when select is omitted (pass select for full specs)

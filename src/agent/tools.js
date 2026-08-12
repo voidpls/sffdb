@@ -3,7 +3,7 @@ const { z } = require('zod')
 const { slimComponent, createGenerousCompleteTracker } = require('../engine/query')
 const config = require('../config')
 
-const SEARCH_LIMIT = 15
+const SEARCH_LIMIT = 25
 
 function createToolBudgetTracker (maxToolCalls) {
   let used = 0
@@ -59,7 +59,7 @@ function buildTools (engine) {
   const toolBudget = createToolBudgetTracker(config.agent.maxToolCalls)
   return {
     search_components: tool({
-      description: 'Resolve a NAMED component the user mentioned (a specific case, GPU SKU, cooler, fan). Returns up to 15 (*) default-field matches for that category. Do NOT use for GPU chip families (5080, 4090, 1080, XTX, etc.) — use query_components with the fit recipe instead. Never browse variants.',
+      description: 'Resolve a NAMED component the user mentioned (a specific case, GPU SKU, cooler, fan). Returns up to 25 (*) default-field matches for that category. Do NOT use for GPU chip families (5080, 4090, 1080, XTX, etc.) — use query_components with the fit recipe instead. Never browse variants.',
       inputSchema: z.object({
         query: z.string().describe('The component name to search for'),
         category: z.string().optional().describe('Optional category to restrict the search')
@@ -78,7 +78,7 @@ function buildTools (engine) {
       })
     }),
     query_components: tool({
-      description: 'Filter and sort a whole category server-side; returns up to 30 (*) fields by default (omit select). If select is needed, request only the minimum non-(*) fields still required. Put ALL constraints in where and use sort when ordering matters. Prefer ONE call — never re-look-up the returned results individually.',
+      description: 'Filter and sort a whole category server-side; returns up to 50 (*) rows by default (omit select). If select is needed, request only the minimum non-(*) fields still required. Put ALL constraints in where and use sort when ordering matters. Prefer ONE call — never re-look-up the returned results individually.',
       inputSchema: z.object({
         category: z.string(),
         where: z.array(z.object({
