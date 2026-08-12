@@ -5,6 +5,59 @@ module.exports = {
     refreshIntervalMs: 30 * 60_000
   },
 
+  agent: {
+    enabled: true,
+    provider: 'xai', // prod: grok-4.5 (reasoningEffort low); override per-process with AGENT_PROVIDER
+    model: 'grok-4.5',
+    thinking: true,
+    maxSteps: 10,
+    maxToolCalls: 10,
+    cooldownMs: 30_000,
+    logReasoning: process.env.AGENT_DEBUG === 'true',
+    maxResults: 50,
+    rejectBareChipBrowse: process.env.AGENT_REJECT_BARE_CHIP !== '0',
+    timeoutMs: 75_000,
+    // Fit-relevant fields returned by tools when select is omitted (pass select for full specs)
+    defaultSelect: {
+      Cases: [
+        'Seller', 'Case', 'Volume (L)',
+        'GPU Length (mm)', 'GPU Width (mm)', 'GPU Height / Thickness (mm)', 'PCIe Slot',
+        'CPU Cooler Height (mm)', 'AIO / Radiator Support', 'PSU', 'Motherboard',
+        'Price (USD)'
+      ],
+      'Graphics Cards': [
+        'Brand', 'Model', 'Name',
+        'Length (mm)', 'Width (mm)', 'Thickness (mm)', 'Watercooled'
+      ],
+      'Coolers (Air)': [
+        'Brand', 'Cooler', 'Height (mm)', 'Length (mm)', 'Width (mm)',
+        'RAM Clearance (mm)', 'Fans', 'Fan Size (mm)'
+      ],
+      'Coolers (AIO)': [
+        'Brand', 'Model', 'Radiator Type',
+        'Radiator Length (mm)', 'Radiator Thickness (mm)', 'Rad + Fan Total Thickness (mm)',
+        'CPU Block Height (mm)', 'Fans', 'Fan Size (mm)'
+      ],
+      'Slim Fans': ['Brand', 'Model', 'Fan Size (mm)', 'Thickness (mm)'],
+      'Mobos (ITX)': [
+        'Brand', 'Name', 'CPU', 'Socket', 'Chipset',
+        'RAM Slots', 'Supported RAM Capacity (GB)', 'RAM Type', 'PCIe x16 Slot'
+      ]
+    },
+    margins: {
+      gpuRiser: 15,
+      gpu8pin: 30,
+      gpu12vhpwr: 35,
+      aioServiceMm: 8,
+      coolerMarginMm: 4,
+      slimFanMm: 15
+    },
+    status: {
+      searching: '<a:loading:1515171713174994994>  Searching the database…',
+      formatting: '<a:typing:1516013194777329725>  Synthesizing answer...'
+    }
+  },
+
   links: {
     description:
       '[SFF PC Masterlist](https://bit.ly/30BJn2S) - by <@453436176490037250>\n' +
@@ -13,14 +66,16 @@ module.exports = {
   },
 
   sheets: {
-    spreadsheetId: process.env.SHEETS_SPREADSHEET_ID || '1AddRvGWJ_f4B6UC7_IftDiVudVc8CJ8sxLUqlxVsCz4',
+    spreadsheetId:
+      process.env.SHEETS_SPREADSHEET_ID ||
+      '1AddRvGWJ_f4B6UC7_IftDiVudVc8CJ8sxLUqlxVsCz4',
 
     tabs: {
       'SFF Case <10L': { category: 'Cases' },
       'SFF Case 10L-20L': { category: 'Cases' },
       'MFF Case >20L': { category: 'Cases' },
       'CPU Cooler <70mm': { category: 'Coolers (Air)' },
-      'AIO': { category: 'Coolers (AIO)' },
+      AIO: { category: 'Coolers (AIO)' },
       'Slim Fan': { category: 'Slim Fans' },
       'mITX Boards': { category: 'Mobos (ITX)' },
       'SFF GPU <215mm': { category: 'Graphics Cards' },
@@ -113,6 +168,49 @@ module.exports = {
           '**Thickness (Height)**: {{Thickness (mm)}}mm\n' +
           '**GPU Fans**: {{Fans}}\n' +
           '**Watercooled**: {{Watercooled}}'
+      }
+    },
+
+    aliases: {
+      Cases: {
+        volume: 'Volume (L)',
+        footprint: 'Footprint (cm2)',
+        case_length: 'Case Length (mm)',
+        case_width: 'Case Width (mm)',
+        case_height: 'Case Height (mm)',
+        cooler_height: 'CPU Cooler Height (mm)',
+        gpu_length: 'GPU Length (mm)',
+        gpu_width: 'GPU Width (mm)',
+        gpu_thickness: 'GPU Height / Thickness (mm)',
+        pcie_slot: 'PCIe Slot',
+        psu: 'PSU',
+        motherboard: 'Motherboard',
+        price_usd: 'Price (USD)',
+        style: 'Style'
+      },
+      'Graphics Cards': {
+        length: 'Length (mm)',
+        width: 'Width (mm)',
+        thickness: 'Thickness (mm)',
+        tdp: 'TDP (W)',
+        memory: 'Memory'
+      },
+      'Coolers (AIO)': {
+        radiator_type: 'Radiator Type',
+        radiator_length: 'Radiator Length (mm)',
+        radiator_thickness: 'Radiator Thickness (mm)',
+        rad_fan_thickness: 'Rad + Fan Total Thickness (mm)',
+        block_height: 'CPU Block Height (mm)',
+        fans: 'Fans'
+      },
+      'Coolers (Air)': {
+        height: 'Height (mm)',
+        ram_clearance: 'RAM Clearance (mm)',
+        fans: 'Fans'
+      },
+      'Slim Fans': {
+        fan_size: 'Fan Size (mm)',
+        thickness: 'Thickness (mm)'
       }
     }
   },

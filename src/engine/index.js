@@ -1,6 +1,9 @@
 const SheetsFetcher = require('./sheets')
 const SearchEngine = require('./search')
 const { formatComponent, formatComponentJSON } = require('./formatter')
+const { queryComponents } = require('./query')
+const { buildCatalog } = require('./catalog')
+const { validateDefaultSelect } = require('./defaultSelect')
 const config = require('../config')
 
 class QueryEngine {
@@ -16,6 +19,7 @@ class QueryEngine {
     this.tabs = tabs
     this.templates = config.sheets.formatting
     this.lastRefresh = null
+    this.catalog = {}
   }
 
   async init () {
@@ -24,11 +28,24 @@ class QueryEngine {
 
   async refresh () {
     const raw = await this.fetcher.fetch(this.tabs)
+    this.loadSnapshot(raw)
+    return this.searchEngine.items.length
+  }
+
+  // Load from a raw sheet snapshot ({tabName: [{header: value}, ...]}) instead of
+  // fetching Sheets. Used by the bench harness so all child processes share one fetch.
+  loadSnapshot (raw) {
     const items = this.buildIndex(raw)
     this.searchEngine.load(items)
+    this.rebuildCatalog()
     this.lastRefresh = new Date()
     console.info(`[engine] Indexed ${items.length} components across ${this.searchEngine.getCategories().length} categories`)
     return items.length
+  }
+
+  // The raw sheet data backing the index, for snapshotting to a temp file.
+  snapshot () {
+    return this.fetcher.lastRaw
   }
 
   // Flattens all sheets into one array, enriches rows with category + INDEX field
@@ -86,6 +103,31 @@ class QueryEngine {
 
   getByCategory (category) {
     return this.searchEngine.getByCategory(category)
+  }
+
+  rebuildCatalog () {
+    this.catalog = buildCatalog(
+      this.searchEngine.items,
+      config.sheets.aliases,
+      config.agent.defaultSelect
+    )
+    const check = validateDefaultSelect(this.catalog, config.agent.defaultSelect)
+    if (!check.ok) {
+      console.error('[engine] defaultSelect drift — missing catalog fields:', check.missing)
+    }
+  }
+
+  query (spec) {
+    return queryComponents(this.searchEngine.items, spec, {
+      aliases: config.sheets.aliases,
+      maxResults: config.agent.maxResults,
+      defaultSelect: config.agent.defaultSelect,
+      rejectBareChipBrowse: config.agent.rejectBareChipBrowse
+    })
+  }
+
+  getCatalog () {
+    return this.catalog
   }
 
   formatDiscord (component) {
