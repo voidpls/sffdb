@@ -22,9 +22,9 @@ test('modelIdFor picks per-provider defaults and honors AGENT_MODEL', () => {
   const prev = process.env.AGENT_MODEL
   delete process.env.AGENT_MODEL
   assert.strictEqual(modelIdFor('deepseek'), 'deepseek-v4-flash')
-  assert.strictEqual(modelIdFor('xai'), 'grok-4.5')
-  process.env.AGENT_MODEL = 'grok-4.5-fast'
-  assert.strictEqual(modelIdFor('xai'), 'grok-4.5-fast')
+  assert.strictEqual(modelIdFor('xai'), 'grok-4.6')
+  process.env.AGENT_MODEL = 'grok-4.6-fast'
+  assert.strictEqual(modelIdFor('xai'), 'grok-4.6-fast')
   restoreEnv('AGENT_MODEL', prev)
 })
 

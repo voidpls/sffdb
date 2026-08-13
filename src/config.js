@@ -7,8 +7,8 @@ module.exports = {
 
   agent: {
     enabled: true,
-    provider: 'xai', // prod: grok-4.5 (reasoningEffort low); override per-process with AGENT_PROVIDER
-    model: 'grok-4.5',
+    provider: 'xai', // prod: grok-4.6 (reasoningEffort low); override per-process with AGENT_PROVIDER
+    model: 'grok-4.6',
     thinking: true,
     maxSteps: 10,
     maxToolCalls: 10,

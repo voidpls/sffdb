@@ -22,7 +22,7 @@ const PROVIDERS = {
   },
   xai: {
     apiKeyEnv: 'XAI_API_KEY',
-    defaultModel: 'grok-4.5',
+    defaultModel: 'grok-4.6',
     toolChoiceNone: true,
     create: apiKey => createXai({ apiKey }),
     // reasoningEffort: 'low' | 'medium' | 'high' (AGENT_REASONING_EFFORT, default low)
