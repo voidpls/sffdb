@@ -151,3 +151,31 @@ invocation; two passes per config for intra-model variance (oracle protocol).
 - deepseek high: `...02-08-31-080Z`, `...02-10-16-346Z`
 - muse med: `...02-15-00-653Z`, `...02-17-55-562Z`
 - muse high: `...02-26-15-284Z`, `...02-29-10-767Z`
+
+## DeepSeek V4.1 Flash re-bench (2026-09-14)
+
+Same harness/evaluator as 2026-08-09 (`scripts/` unchanged since `b9671c4`); same protocol
+(8 cases × 5 runs × 2 passes). Ran `AGENT_PROVIDER=deepseek AGENT_MODEL=deepseek-flash` —
+V4.1-Flash. API note: `deepseek-v4.1-flash` is not a valid id; `deepseek-flash` is, and legacy
+`deepseek-v4-flash` is still accepted but silently serves V4.1 too. `PRICING.deepseek` updated to
+V4.1 off-peak rates ($0.15 / $0.003 / $0.60 per 1M; peak 2×).
+
+| Pass | Quality | answerFails | malformed | errors | avg | p50 | p90 | Cost |
+|---|---|---|---|---|---|---|---|---|
+| 1 (`...22-24-21-677Z`) | 38/40 (95.0%) | 0 | 0 | 0 | 13.4s | 9.1s | 34.7s | $0.081 |
+| 2 (`...22-25-36-703Z`) | 39/40 (97.5%) | 0 | 0 | 0 | 13.4s | 8.3s | 37.7s | $0.079 |
+
+**Combined 77/80 (96.3%)** vs Aug 9 `deepseek-v4-flash` 76/80 (95.0%, avg 22.5–24.1s,
+answerFails 2/80): quality flat-to-up (within noise at n=80), ~1.7× faster, cheaper. First runs
+with correct cache accounting: ~3.0k miss + 12.6k cache + 2.5k out per run (Aug files billed all
+input as miss — artifact, see Caveats). Cost ≈ $0.002/run off-peak.
+
+Per-case: 7/8 cases 10/10; only bare-chip 7/10 (3 fails — model issued a bare
+`Model contains "4090"` query: 2 in pass 1, 1 in pass 2). Aug runs were 8/10 there.
+No tight-GPU/generous-fit failures.
+
+Caveats: same 8 questions, but Sheets fixture data drifted ~5 weeks since Aug 9; prod code also
+changed after the bench (`2c8ed74` raised tool max results search 15→25 / query 30→50) — evaluator
+untouched, so comparison stands with that caveat. Prod now defaults to this config
+(`provider: deepseek`, `model: deepseek-flash`, thinking enabled), superseding grok-4.6 low
+(switch commit `7dd5d4e`).

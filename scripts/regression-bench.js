@@ -154,9 +154,9 @@ function runOne ({ id, text, answer }, run, snapshotPath) {
 }
 
 // Pricing per 1M tokens (input cache-miss / cached / output), keyed by provider.
-// deepseek: V4-Flash rates. xai: grok-4.5 (<200k prompt tokens). meta: muse-spark-1.2-contributor.
+// deepseek: V4.1-Flash off-peak rates (peak 2x: 0.30/0.006/1.20). xai: grok-4.5 (<200k prompt tokens). meta: muse-spark-1.2-contributor.
 const PRICING = {
-  deepseek: { miss: 0.14, cache: 0.003, out: 0.28 },
+  deepseek: { miss: 0.15, cache: 0.003, out: 0.6 },
   xai: { miss: 2.0, cache: 0.3, out: 6.0 },
   meta: { miss: 0.1, cache: 0.002, out: 0.2 }
 }

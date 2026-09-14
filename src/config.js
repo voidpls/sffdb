@@ -7,8 +7,8 @@ module.exports = {
 
   agent: {
     enabled: true,
-    provider: 'xai', // prod: grok-4.6 (reasoningEffort low); override per-process with AGENT_PROVIDER
-    model: 'grok-4.6',
+    provider: 'deepseek', // prod: deepseek-flash (V4.1, thinking enabled); override per-process with AGENT_PROVIDER
+    model: 'deepseek-flash',
     thinking: true,
     maxSteps: 10,
     maxToolCalls: 10,

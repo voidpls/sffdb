@@ -9,7 +9,7 @@ const config = require('../config')
 const PROVIDERS = {
   deepseek: {
     apiKeyEnv: 'DEEPSEEK_API_KEY',
-    defaultModel: 'deepseek-v4-flash',
+    defaultModel: 'deepseek-flash',
     toolChoiceNone: true,
     create: apiKey => createDeepSeek({ apiKey }),
     // thinking: 'enabled' | 'disabled' (config.agent.thinking / createAgent override);
